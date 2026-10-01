@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TerrainType {
+  FLAT
+  ROLLING
+  MOUNTAIN
+  STEEP_MOUNTAIN
+  MIXED
+}
+
+enum TimeOfDay {
+  DAY
+  NIGHT
+}
+
+enum MissionRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum OperationStatus {
+  DRAFT
+  STRUCTURED
+  REVIEWED
+}
+
+model Unit {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  squads    Squad[]
+}
+
+model Squad {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  unitId    String
+  unit      Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  roles     Role[]
+}
+
+model Role {
+  id        String    @id @default(cuid())
+  name      String
+  code      String    @unique
+  squadId   String
+  squad     Squad     @relation(fields: [squadId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  soldiers  Soldier[]
+}
+
+model Soldier {
+  id                String   @id @default(cuid())
+  soldierCode       String   @unique
+  roleId            String
+  role              Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  experienceYears   Int
+  baselineMobility  Int
+  baselineEndurance Int
+  baselineStrength  Int
+  baselineRecovery  Int
+  typicalLoadKg     Float
+  status            String   @default("ACTIVE")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  missionScenarios MissionScenario[]
+  missionRuns      MissionRun[]
+}
+
+model MissionScenario {
+  id                 String     @id @default(cuid())
+  name               String
+  terrainType        TerrainType
+  altitudeMeters     Int
+  temperatureCelsius Float
+  loadKg             Float
+  distanceKm         Float
+  durationMinutes    Int
+  restMinutes        Int
+  timeOfDay          TimeOfDay
+  description        String?
+  soldierId          String?
+  soldier            Soldier?   @relation(fields: [soldierId], references: [id], onDelete: SetNull)
+  sourceOperationId  String?
+  sourceOperation    HistoricalOperation? @relation(fields: [sourceOperationId], references: [id], onDelete: SetNull)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  runs MissionRun[]
+}
+
+model MissionRun {
+  id               String           @id @default(cuid())
+  scenarioId       String
+  scenario         MissionScenario  @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  soldierId        String?
+  soldier          Soldier?         @relation(fields: [soldierId], references: [id], onDelete: SetNull)
+  status           MissionRunStatus @default(PENDING)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  finalFatigue     Float?
+  finalMobility    Float?
+  finalEndurance   Float?
+  finalPerformance Float?
+  createdAt        DateTime         @default(now())
+
+  snapshots PerformanceSnapshot[]
+}
+
+model PerformanceSnapshot {
+  id           String     @id @default(cuid())
+  missionRunId String
+  missionRun   MissionRun @relation(fields: [missionRunId], references: [id], onDelete: Cascade)
+  timeMinutes  Int
+  fatigue      Float
+  mobility     Float
+  endurance    Float
+  performance  Float
+  createdAt    DateTime   @default(now())
+
+  @@index([missionRunId, timeMinutes])
+}
+
+model HistoricalOperation {
+  id                   String          @id @default(cuid())
+  title                String
+  region               String
+  terrainType          TerrainType
+  altitudeBand         String
+  temperatureBand      String
+  durationMinutes      Int
+  timeOfDay            TimeOfDay
+  weatherSummary       String
+  personnelSummary     String
+  environmentalFactors String
+  humanFactors         String
+  rawReport            String?
+  aiSummary            String?
+  status               OperationStatus @default(STRUCTURED)
+  isDemo               Boolean         @default(true)
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  lessons   OperationLesson[]
+  scenarios MissionScenario[]
+}
+
+model OperationLesson {
+  id          String              @id @default(cuid())
+  operationId String
+  operation   HistoricalOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  category    String
+  createdAt   DateTime            @default(now())
+}
