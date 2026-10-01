@@ -29,12 +29,12 @@ export default async function SettingsPage() {
   }
 
   const aiConfigured = isAiConfigured();
+  const hfModel = process.env.HF_MODEL || "Not set";
 
   const envNames = [
     "DATABASE_URL",
-    "AI_API_KEY",
-    "AI_BASE_URL",
-    "AI_MODEL",
+    "HF_API_KEY",
+    "HF_MODEL",
     "NEXT_PUBLIC_ENABLE_AI",
     "NEXT_PUBLIC_APP_NAME",
     "APP_NAME",
@@ -84,13 +84,13 @@ export default async function SettingsPage() {
             note="Deterministic TypeScript engine loaded"
           />
           <StatusRow
-            label="AI Provider"
+            label="Hugging Face AI"
             status={aiConfigured ? "CONFIGURED" : "DEMO MODE"}
             tone={aiConfigured ? "cyan" : "muted"}
             note={
               aiConfigured
-                ? "AI_API_KEY present — live analysis available"
-                : "No AI_API_KEY — report analysis uses deterministic fallback"
+                ? `HF_API_KEY present · Model: ${hfModel}`
+                : "No HF_API_KEY — report analysis uses deterministic fallback"
             }
           />
         </Panel>

@@ -26,7 +26,7 @@ Core idea: *"We don't just simulate the mission. We simulate the humans who have
 
 - Next.js + TS + React + PostgreSQL + Prisma + Tailwind + R3F + Recharts + Zod + Lucide + Docker Compose + GH Actions
 - Deterministic simulation (no ML for human performance)
-- AI optional (OpenAI-compatible); fallback when no `AI_API_KEY`
+- AI optional (Hugging Face router); fallback when no `HF_API_KEY` or `HF_MODEL`
 - Synthetic/demo data only — no real PII / classified / biometric data
 - No medical claims — "Simulated Performance Index" / "PROTOTYPE SIMULATION"
 

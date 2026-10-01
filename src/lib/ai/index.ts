@@ -1,4 +1,3 @@
-import { OpenAI } from "openai";
 import {
   operationAnalysisResultSchema,
   type OperationAnalysisResult,
@@ -39,21 +38,6 @@ export function getAiConfig(): AiServiceConfig {
   };
 }
 
-/**
- * Gets a server-side OpenAI-compatible client pre-configured for Hugging Face router endpoint.
- */
-export function getAiClient(): OpenAI | null {
-  const cfg = getAiConfig();
-  if (!cfg.enabled) {
-    return null;
-  }
-
-  return new OpenAI({
-    baseURL: HF_ROUTER_BASE_URL,
-    apiKey: cfg.apiKey,
-  });
-}
-
 const SYSTEM_PROMPT = `You extract structured operational learning from training/mission reports.
 Return ONLY valid JSON matching the schema. Do not invent real military facts.
 Do not claim medical or verified historical authority. Use only information present in the report.
@@ -61,7 +45,7 @@ Terrain must be one of: FLAT, ROLLING, MOUNTAIN, STEEP_MOUNTAIN, MIXED.
 timeOfDay should be DAY or NIGHT when possible.`;
 
 /**
- * Analyze operation report via Hugging Face Inference API router, with deterministic fallback.
+ * Analyze operation report via Hugging Face Inference API router endpoint, with deterministic fallback.
  */
 export async function analyzeOperationReport(
   rawText: string
@@ -87,26 +71,40 @@ export async function analyzeOperationReport(
 }
 
 async function callAi(rawText: string, stricter = false): Promise<unknown> {
-  const client = getAiClient();
   const cfg = getAiConfig();
-  if (!client || !cfg.model) {
+  if (!cfg.apiKey || !cfg.model) {
     throw new Error("Hugging Face AI configuration is incomplete.");
   }
 
-  const response = await client.chat.completions.create({
-    model: cfg.model,
-    temperature: 0.2,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: `${stricter ? "Previous output was invalid. Return strict JSON only.\n\n" : ""}Extract structured fields from this report:\n\n${rawText.slice(0, 12000)}`,
-      },
-    ],
+  const response = await fetch(`${HF_ROUTER_BASE_URL}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${cfg.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: cfg.model,
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: `${stricter ? "Previous output was invalid. Return strict JSON only.\n\n" : ""}Extract structured fields from this report:\n\n${rawText.slice(0, 12000)}`,
+        },
+      ],
+    }),
   });
 
-  const content = response.choices?.[0]?.message?.content;
+  if (!response.ok) {
+    throw new Error(`Hugging Face Router HTTP ${response.status}`);
+  }
+
+  const data = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+
+  const content = data.choices?.[0]?.message?.content;
   if (!content) throw new Error("Empty response from Hugging Face AI model");
   return JSON.parse(content);
 }

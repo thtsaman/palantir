@@ -76,12 +76,13 @@ These are **prototype relative indices** for demonstration and software validati
 Optional. Configure:
 
 ```
-AI_BASE_URL=
-AI_API_KEY=
-AI_MODEL=
+HF_API_KEY=
+HF_MODEL=
 ```
 
-If `AI_API_KEY` is missing, report analysis uses a deterministic extractor and shows **AI ANALYSIS: DEMO MODE**. The app never requires AI to run.
+`HF_API_KEY` is server-only. `HF_MODEL` specifies the Hugging Face model identifier via Hugging Face's OpenAI-compatible router (`https://router.huggingface.co/v1`).
+
+If `HF_API_KEY` or `HF_MODEL` is missing, report analysis uses a deterministic extractor and shows **AI ANALYSIS: DEMO MODE**. The app never requires AI to run.
 
 ## Local development
 
