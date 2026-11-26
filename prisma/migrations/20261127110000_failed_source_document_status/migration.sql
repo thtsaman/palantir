@@ -1,0 +1,4 @@
+ALTER TABLE "OperationSourceDocument"
+ALTER COLUMN "fileType" DROP NOT NULL,
+ALTER COLUMN "storageRef" DROP NOT NULL,
+ALTER COLUMN "extractedText" DROP NOT NULL;

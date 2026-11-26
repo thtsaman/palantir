@@ -10,6 +10,9 @@ import {
   StatusBadge,
 } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
+import type { SoldierBaseline } from "@/lib/simulation";
+import { HistoricalContextPanel } from "@/components/historical/HistoricalContextPanel";
+import { MissionTerrain } from "@/components/simulator/MissionTerrain";
 
 const TERRAIN = [
   "FLAT",
@@ -17,6 +20,8 @@ const TERRAIN = [
   "MOUNTAIN",
   "STEEP_MOUNTAIN",
   "MIXED",
+  "DESERT",
+  "FOREST",
 ] as const;
 
 type TerrainType = (typeof TERRAIN)[number];
@@ -30,11 +35,17 @@ export function MissionBuilder({
   soldierCode,
   soldierRole,
   defaultLoadKg,
+  soldierBaseline,
+  unusedProfileFields,
+  historicalRecords,
 }: {
   soldierId: string | null;
   soldierCode: string | null;
   soldierRole: string | null;
   defaultLoadKg: number;
+  soldierBaseline: SoldierBaseline | null;
+  unusedProfileFields: string[];
+  historicalRecords: Array<{ id: string; title: string; operationDate: string | null; missionCategory: string | null; isDemo: boolean }>;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -52,6 +63,7 @@ export function MissionBuilder({
   const [durationMinutes, setDurationMinutes] = useState(360);
   const [restMinutes, setRestMinutes] = useState(20);
   const [description, setDescription] = useState("");
+  const [sourceOperationId, setSourceOperationId] = useState("");
 
   async function runSimulation() {
     setBusy(true);
@@ -74,6 +86,7 @@ export function MissionBuilder({
             timeOfDay,
             description: description.trim() || undefined,
             soldierId: soldierId ?? undefined,
+            sourceOperationId: sourceOperationId || undefined,
           },
         }),
       });
@@ -120,6 +133,15 @@ export function MissionBuilder({
             className={inputClass}
             placeholder="High Altitude Patrol"
           />
+        </label>
+
+        <label className="block space-y-1.5">
+          <span className="label-xs">Historical record link · optional context only</span>
+          <select className={inputClass} value={sourceOperationId} onChange={(event) => setSourceOperationId(event.target.value)}>
+            <option value="">No linked historical record</option>
+            {historicalRecords.map((record) => <option key={record.id} value={record.id}>{record.isDemo ? "[Synthetic] " : ""}{record.title}{record.operationDate ? ` · ${record.operationDate}` : ""}{record.missionCategory ? ` · ${record.missionCategory}` : ""}</option>)}
+          </select>
+          <span className="block text-[10px] text-[var(--gray-500)]">Links approved evidence for review. Historical context does not change modeled estimates.</span>
         </label>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -244,6 +266,10 @@ export function MissionBuilder({
       </Panel>
 
       <div className="space-y-4">
+        <Panel padded={false} className="overflow-hidden !p-0">
+          <div className="border-b border-[var(--border)] px-4 py-3"><SectionHeader title="Environment preview" subtitle="Schematic route shape · not geographic data" /></div>
+          <div className="h-44"><MissionTerrain progress={0.5} terrainType={terrainType} distanceKm={distanceKm} altitudeMeters={altitudeMeters} viewType="TOPOGRAPHIC" className="h-full w-full" /></div>
+        </Panel>
         <Panel className="!p-5 space-y-4">
           <SectionHeader
             title="Subject"
@@ -259,12 +285,13 @@ export function MissionBuilder({
                 {soldierRole ?? "Assigned role"}
               </p>
               <p className="mt-3 text-[12px] text-[var(--gray-500)]">
-                Typical load seeded to{" "}
+                Baseline used: mobility {soldierBaseline?.baselineMobility}, endurance {soldierBaseline?.baselineEndurance}, strength {soldierBaseline?.baselineStrength}, recovery {soldierBaseline?.baselineRecovery}, experience {soldierBaseline?.experienceYears} y. Typical load seeded to{" "}
                 <span className="mono tabular text-[var(--off-white)]">
                   {defaultLoadKg} kg
                 </span>
                 . Adjust freely for what-if analysis.
               </p>
+              <p className="text-[11px] text-[var(--gray-500)]">{unusedProfileFields.length ? `${unusedProfileFields.join(", ")} are recorded but not modeled.` : "Age, height, weight and fitness assessment are not modeled by this prototype."}</p>
               <div className="mt-4">
                 <Button href={`/soldiers/${soldierId}`} variant="secondary" size="sm">
                   View Profile
@@ -305,6 +332,7 @@ export function MissionBuilder({
             or combat-effectiveness scores.
           </p>
         </Panel>
+        <HistoricalContextPanel label="Historical context for configured mission" inputs={{ terrainType, altitudeMeters, temperatureCelsius, loadKg, distanceKm, durationMinutes, restMinutes, timeOfDay }} compact />
       </div>
     </div>
   );

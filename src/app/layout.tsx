@@ -16,9 +16,9 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Human Performance Simulation",
+  title: "Defence Human Performance Simulation & Mission Readiness",
   description:
-    "Mission readiness platform — simulate how human performance changes under mission conditions.",
+    "Defence-focused human-performance simulation, mission readiness analysis, and historical operational learning for synthetic training scenarios.",
 };
 
 export default function RootLayout({

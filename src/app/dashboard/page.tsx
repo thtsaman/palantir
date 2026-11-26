@@ -10,6 +10,7 @@ import { SimulationChart } from "@/components/charts/SimulationChart";
 import { MissionRoutePreview } from "@/components/charts/MissionRoutePreview";
 import { ReadinessGauge } from "@/components/ui/ReadinessGauge";
 import { prisma } from "@/lib/prisma";
+import { normalizeFactors, terrainLabel } from "@/lib/simulation/factors";
 import Link from "next/link";
 import {
   Clock,
@@ -24,23 +25,13 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [scenario, recentScenarios, recentRuns, opCount] = await Promise.all([
-    prisma.missionScenario.findFirst({
-      where: { name: "High Altitude Patrol" },
-      include: {
-        soldier: true,
-        runs: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          include: { snapshots: { orderBy: { timeMinutes: "asc" } } },
-        },
-      },
-    }),
+  const [recentScenarios, recentRuns, completedRunCount, approvedOperationCount, soldierCount, unitCount, scenarioCount, approvedLessonCount, unknownProfileCount, groupRunCount] = await Promise.all([
     prisma.missionScenario.findMany({
       orderBy: { createdAt: "desc" },
       take: 3,
       include: {
         runs: {
+          where: { status: "COMPLETED" },
           orderBy: { createdAt: "desc" },
           take: 1,
           include: { snapshots: { orderBy: { timeMinutes: "asc" } } },
@@ -48,33 +39,36 @@ export default async function DashboardPage() {
       },
     }),
     prisma.missionRun.findMany({
+      where: { status: "COMPLETED" },
       orderBy: { createdAt: "desc" },
       take: 5,
       include: { scenario: true, soldier: true },
     }),
-    prisma.historicalOperation.count(),
+    prisma.missionRun.count({ where: { status: "COMPLETED" } }),
+    prisma.historicalOperation.count({ where: { workflowStatus: "APPROVED" } }),
+    prisma.soldier.count(),
+    prisma.unit.count(),
+    prisma.missionScenario.count(),
+    prisma.operationLesson.count({ where: { reviewStatus: "APPROVED", operation: { workflowStatus: "APPROVED" } } }),
+    prisma.soldier.count({ where: { profileProvenance: null } }),
+    prisma.groupSimulationRun.count(),
   ]);
 
-  const activeScenario = scenario ?? recentScenarios[0];
+  const activeScenario = recentScenarios.find((scenario) => scenario.runs.length > 0) ?? recentScenarios[0];
   const run = activeScenario?.runs?.[0];
   const snaps = run?.snapshots ?? [];
 
   const final = run
     ? {
-        fatigue: Math.round(run.finalFatigue ?? 58),
-        mobility: Math.round(run.finalMobility ?? 72),
-        endurance: Math.round(run.finalEndurance ?? 64),
-        performance: Math.round(run.finalPerformance ?? 69),
-      }
-    : {
-        fatigue: 58,
-        mobility: 72,
-        endurance: 64,
-        performance: 69,
-      };
+        fatigue: run.finalFatigue === null ? null : Math.round(run.finalFatigue),
+        mobility: run.finalMobility === null ? null : Math.round(run.finalMobility),
+        endurance: run.finalEndurance === null ? null : Math.round(run.finalEndurance),
+        performance: run.finalPerformance === null ? null : Math.round(run.finalPerformance),
+      } : null;
 
-  const activeScenarioName = activeScenario?.name ?? "High Altitude Patrol";
+  const activeScenarioName = activeScenario?.name ?? "No mission scenario";
   const activeScenarioId = activeScenario?.id ?? "";
+  const factors = activeScenario ? normalizeFactors({ terrainType: activeScenario.terrainType, altitudeMeters: activeScenario.altitudeMeters, temperatureCelsius: activeScenario.temperatureCelsius, loadKg: activeScenario.loadKg, distanceKm: activeScenario.distanceKm, durationMinutes: activeScenario.durationMinutes, restMinutes: activeScenario.restMinutes, timeOfDay: activeScenario.timeOfDay }) : null;
 
   return (
     <AppShell
@@ -84,14 +78,14 @@ export default async function DashboardPage() {
           <span className="mono text-[11px] text-[var(--gray-300)]">
             MISSION WORKSTATION
           </span>
-          <StatusBadge tone="cyan">SIMULATION READY</StatusBadge>
+            <StatusBadge tone={activeScenario ? "cyan" : "muted"}>{activeScenario ? "SAVED SCENARIOS" : "NO SCENARIOS"}</StatusBadge>
         </div>
       }
     >
       <PageHeader
         eyebrow="MISSION SIMULATION OVERVIEW"
         title="Mission Readiness"
-        description="See how mission conditions change the simulated human state over time."
+        description="Defence mission readiness analysis focused on personnel, fatigue, recovery, group capability and historical operational learning. Current outputs are relative prototype estimates."
         actions={
           <>
             <Button href="/missions/new" variant="secondary" size="sm">
@@ -106,40 +100,50 @@ export default async function DashboardPage() {
         }
       />
 
+      <section aria-label="Platform inventory" className="mb-6 grid grid-cols-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--ink-panel)] sm:grid-cols-3 lg:grid-cols-6">
+        <InventoryLink href="/soldiers" label="Personnel" value={soldierCount} note={unknownProfileCount + " with unknown profile source"} />
+        <InventoryLink href="/organization" label="Units" value={unitCount} note="Top-level organizational units" />
+        <InventoryLink href="/missions" label="Missions" value={scenarioCount} note="Saved scenarios" />
+        <InventoryLink href="/missions" label="Group runs" value={groupRunCount} note="Persisted group simulations" />
+        <InventoryLink href="/learning" label="Approved reports" value={approvedOperationCount} note={approvedLessonCount + " approved lessons"} />
+        <InventoryLink href="/missions" label="Completed runs" value={completedRunCount} note="Persisted individual runs" />
+      </section>
+
       <div className="space-y-6">
         {/* 1. TOP HERO SECTION */}
-        <div className="grid gap-5 lg:grid-cols-[1.25fr_0.75fr]">
+        {activeScenario ? <div className="grid gap-5 lg:grid-cols-[1.25fr_0.75fr]">
           {/* LEFT: MISSION SCENARIO */}
           <Panel className="!p-5 space-y-4 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="label-xs text-[var(--cyan)]">ACTIVE SCENARIO</div>
-                <StatusBadge tone="cyan">MOUNTAIN PATROL</StatusBadge>
+                <StatusBadge tone="cyan">{terrainLabel(activeScenario.terrainType)}</StatusBadge>
               </div>
 
               <h2 className="text-[22px] font-bold tracking-tight text-[var(--white)] uppercase">
                 {activeScenarioName}
               </h2>
               <p className="text-[12px] text-[var(--gray-300)] mt-0.5">
-                Mountain Environment · High-altitude endurance patrol scenario
+                {activeScenario.description ?? "Saved mission configuration"}
               </p>
 
               {/* Environmental Indicators Grid */}
               <div className="mt-4 grid grid-cols-3 gap-3 border-t border-b border-[var(--border)] py-3">
-                <EnvMeta icon={<Compass size={13} />} label="ALTITUDE" value={`${activeScenario?.altitudeMeters ?? 3500} m`} />
-                <EnvMeta icon={<Thermometer size={13} />} label="TEMPERATURE" value={`${activeScenario?.temperatureCelsius ?? -5}°C`} />
-                <EnvMeta icon={<Layers size={13} />} label="LOAD" value={`${activeScenario?.loadKg ?? 18} kg`} />
-                <EnvMeta icon={<Clock size={13} />} label="DURATION" value={`${(activeScenario?.durationMinutes ?? 480) / 60} h`} />
-                <EnvMeta icon={<Zap size={13} />} label="DISTANCE" value="12 km" />
-                <EnvMeta icon={<ShieldAlert size={13} />} label="TIME / LIGHT" value={activeScenario?.timeOfDay ?? "NIGHT"} />
+                <EnvMeta icon={<Compass size={13} />} label="ALTITUDE" value={`${activeScenario.altitudeMeters} m`} />
+                <EnvMeta icon={<Thermometer size={13} />} label="TEMPERATURE" value={`${activeScenario.temperatureCelsius}°C`} />
+                <EnvMeta icon={<Layers size={13} />} label="LOAD" value={`${activeScenario.loadKg} kg`} />
+                <EnvMeta icon={<Clock size={13} />} label="DURATION" value={`${(activeScenario.durationMinutes / 60).toFixed(1)} h`} />
+                <EnvMeta icon={<Zap size={13} />} label="DISTANCE" value={`${activeScenario.distanceKm} km`} />
+                <EnvMeta icon={<ShieldAlert size={13} />} label="TIME / LIGHT" value={activeScenario.timeOfDay} />
               </div>
             </div>
 
             {/* Terrain & Route SVG Preview */}
             <MissionRoutePreview
               scenarioName={activeScenarioName}
-              altitudeMeters={activeScenario?.altitudeMeters ?? 3500}
-              distanceKm={12}
+              altitudeMeters={activeScenario.altitudeMeters}
+              distanceKm={activeScenario.distanceKm}
+              terrainType={activeScenario.terrainType}
             />
           </Panel>
 
@@ -147,10 +151,10 @@ export default async function DashboardPage() {
           <Panel className="!p-5 flex flex-col justify-between items-center text-center">
             <div className="w-full flex items-center justify-between border-b border-[var(--border)] pb-3">
               <div className="label-xs text-[var(--cyan)]">SIMULATED READINESS</div>
-              <StatusBadge tone="muted">MID-MISSION</StatusBadge>
+              <StatusBadge tone={run ? "cyan" : "muted"}>{run ? "SAVED RUN" : "NO SAVED RUN"}</StatusBadge>
             </div>
 
-            <div className="py-4">
+            {final?.performance != null ? <div className="py-4">
               <ReadinessGauge
                 type="ring"
                 value={final.performance}
@@ -158,7 +162,7 @@ export default async function DashboardPage() {
                 label="READINESS INDEX"
                 sublabel="Relative simulated capacity"
               />
-            </div>
+            </div> : <EmptyState title="No saved simulation" description="Run this scenario in the simulator to populate saved result metrics." action={activeScenarioId ? <Button href={`/simulator/${activeScenarioId}`} size="sm">Open simulator</Button> : undefined} />}
 
             <div className="w-full border-t border-[var(--border)] pt-3 text-left">
               <div className="flex items-center justify-between text-[11px] text-[var(--gray-500)] mono">
@@ -170,32 +174,32 @@ export default async function DashboardPage() {
               </p>
             </div>
           </Panel>
-        </div>
+        </div> : <EmptyState title="No mission scenarios yet" description="Create a mission to see its saved configuration and simulation results here." action={<Button href="/missions/new" size="sm">Configure mission</Button>} />}
 
         {/* 2. FOUR HUMAN PERFORMANCE METRICS STRIP */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <MetricTile
             label="FATIGUE"
-            value={final.fatigue}
-            trendText="↗ Accumulated"
+            value={final?.fatigue ?? "—"}
+            trendText={run ? "Saved run" : "No result"}
             subtext="Higher number = greater fatigue"
           />
           <MetricTile
             label="MOBILITY"
-            value={final.mobility}
-            trendText="↘ Mobility index"
+            value={final?.mobility ?? "—"}
+            trendText={run ? "Saved run" : "No result"}
             subtext="Higher number = better mobility"
           />
           <MetricTile
             label="ENDURANCE"
-            value={final.endurance}
-            trendText="↘ Stamina reserve"
+            value={final?.endurance ?? "—"}
+            trendText={run ? "Saved run" : "No result"}
             subtext="Higher number = better endurance"
           />
           <MetricTile
             label="PERFORMANCE"
-            value={final.performance}
-            trendText="↘ Overall output"
+            value={final?.performance ?? "—"}
+            trendText={run ? "Saved run" : "No result"}
             subtext="Higher number = better overall output"
             highlight
           />
@@ -209,39 +213,22 @@ export default async function DashboardPage() {
               <h3 className="text-[16px] font-semibold text-[var(--white)]">
                 PERFORMANCE THROUGH MISSION
               </h3>
-              <p className="text-[12px] text-[var(--gray-300)]">
-                Relative simulated indices across mission time (00:00 → 08:00)
-              </p>
+              <p className="text-[12px] text-[var(--gray-300)]">Saved simulation snapshots · {activeScenario ? `${activeScenario.durationMinutes} mission minutes` : "mission duration unavailable"}</p>
             </div>
 
-            {/* Stage Timeline Navigation */}
-            <div className="flex items-center gap-1.5 text-[10px] mono text-[var(--gray-300)] bg-[#090f1b] px-3 py-1.5 rounded border border-[var(--border)]">
-              <span className="text-[var(--cyan)] font-semibold">START (0h)</span>
-              <span>→</span>
-              <span>2 H</span>
-              <span>→</span>
-              <span>4 H (REST)</span>
-              <span>→</span>
-              <span>6 H</span>
-              <span>→</span>
-              <span className="text-[var(--white)]">8 H (END)</span>
-            </div>
+            {run ? <StatusBadge tone="cyan">{run.modelVersion ?? "MODEL VERSION UNKNOWN"}</StatusBadge> : <StatusBadge tone="muted">NO SAVED SNAPSHOTS</StatusBadge>}
           </div>
 
-          <SimulationChart
-            data={
-              snaps.length > 0
-                ? snaps.map((s: { timeMinutes: number; fatigue: number; mobility: number; endurance: number; performance: number }) => ({
+          {snaps.length > 0 ? <SimulationChart
+            data={snaps.map((s: { timeMinutes: number; fatigue: number; mobility: number; endurance: number; performance: number }) => ({
                     timeMinutes: s.timeMinutes,
                     fatigue: s.fatigue,
                     mobility: s.mobility,
                     endurance: s.endurance,
                     performance: s.performance,
-                  }))
-                : mockSnapshots()
-            }
+                  }))}
             height={320}
-          />
+          /> : <EmptyState title="No saved timeline" description="Run a mission simulation to populate this chart from persisted snapshots." />}
         </Panel>
 
         {/* 4. WHY DID THE STATE CHANGE? & OPERATIONAL MEMORY */}
@@ -256,16 +243,10 @@ export default async function DashboardPage() {
                     WHY DID THE STATE CHANGE?
                   </h3>
                 </div>
-                <StatusBadge tone="muted">INFLUENCE MODEL</StatusBadge>
+                <StatusBadge tone="muted">NORMALIZED INPUTS</StatusBadge>
               </div>
 
-              <div className="space-y-3">
-                <InfluenceBar label="LOAD (18 kg)" percentage={42} desc="Carried equipment weight" />
-                <InfluenceBar label="ALTITUDE (3500 m)" percentage={35} desc="Reduced oxygen saturation" />
-                <InfluenceBar label="TEMPERATURE (-5°C)" percentage={28} desc="Cold exposure metabolic cost" />
-                <InfluenceBar label="TERRAIN (Mountain)" percentage={24} desc="Difficult incline navigation" />
-                <InfluenceBar label="REST (15 min)" percentage={-15} desc="Brief recovery period" />
-              </div>
+              {factors ? <div className="grid grid-cols-2 gap-2">{Object.entries({ load: factors.loadFactor, altitude: factors.altitudeFactor, temperature: factors.temperatureFactor, terrain: factors.terrainFactor, duration: factors.durationFactor, distance: factors.distanceFactor, recovery: factors.recoveryFactor, night: factors.nightFactor, combinedStress: factors.environmentStress }).map(([label, value]) => <div key={label} className="rounded border border-[var(--border)] bg-[#090f1b] p-2"><div className="flex justify-between text-[10px] text-[var(--gray-400)]"><span>{label}</span><span className="mono">{value.toFixed(2)}</span></div><div className="mt-1 h-1 overflow-hidden rounded bg-[var(--gray-800)]"><div className="h-full bg-[var(--cyan)]" style={{ width: `${Math.max(0, Math.min(100, value * 100))}%` }} /></div></div>)}</div> : <p className="text-[12px] text-[var(--gray-500)]">No saved mission inputs available.</p>}
             </div>
 
             <div className="mt-4 rounded bg-[#090f1b] p-3 border border-[var(--border)] text-[12px] text-[var(--gray-300)] flex items-center gap-2">
@@ -307,15 +288,15 @@ export default async function DashboardPage() {
 
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div className="rounded bg-[var(--ink)]/80 p-3 border border-[var(--border)]">
-                  <div className="text-[10px] uppercase text-[var(--gray-500)]">HISTORICAL OPS</div>
+                    <div className="text-[10px] uppercase text-[var(--gray-500)]">APPROVED HISTORICAL OPS</div>
                   <div className="mono tabular text-xl font-bold text-[var(--white)] mt-0.5">
-                    {opCount || 5}
+                    {approvedOperationCount}
                   </div>
                 </div>
                 <div className="rounded bg-[var(--ink)]/80 p-3 border border-[var(--border)]">
                   <div className="text-[10px] uppercase text-[var(--gray-500)]">RECENT SIMS</div>
                   <div className="mono tabular text-xl font-bold text-[var(--cyan)] mt-0.5">
-                    {recentRuns.length || 5}
+                    {recentRuns.length}
                   </div>
                 </div>
               </div>
@@ -357,7 +338,7 @@ export default async function DashboardPage() {
             </Link>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
+          {recentScenarios.length === 0 ? <EmptyState title="No saved missions" description="Create a scenario to start the product workflow." action={<Button href="/missions/new" size="sm">Configure mission</Button>} /> : <div className="grid gap-3 md:grid-cols-3">
             {recentScenarios.map((s) => (
               <Link
                 key={s.id}
@@ -381,16 +362,20 @@ export default async function DashboardPage() {
                 <div className="mt-3 border-t border-[var(--border)] pt-2 flex items-center justify-between">
                   <span className="text-[11px] text-[var(--gray-500)]">Simulated Index</span>
                   <span className="mono tabular text-sm font-semibold text-[var(--cyan)]">
-                    {Math.round(s.runs?.[0]?.finalPerformance ?? 69)}
+                    {s.runs?.[0]?.finalPerformance == null ? "—" : Math.round(s.runs[0].finalPerformance)}
                   </span>
                 </div>
               </Link>
             ))}
-          </div>
+          </div>}
         </div>
       </div>
     </AppShell>
   );
+}
+
+function InventoryLink({ href, label, value, note }: { href: string; label: string; value: number; note: string }) {
+  return <Link href={href} className="border-b border-r border-[var(--border)] px-4 py-3.5 transition-colors hover:bg-white/[0.035] sm:px-3 lg:border-b-0"><div className="label-xs">{label}</div><div className="mt-1 font-mono text-[23px] font-medium tabular text-[var(--white)]">{value}</div><div className="mt-0.5 truncate text-[10px] text-[var(--gray-500)]">{note}</div></Link>;
 }
 
 function EnvMeta({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
@@ -415,7 +400,7 @@ function MetricTile({
   highlight = false,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   trendText: string;
   subtext: string;
   highlight?: boolean;
@@ -444,45 +429,3 @@ function MetricTile({
   );
 }
 
-function InfluenceBar({
-  label,
-  percentage,
-  desc,
-}: {
-  label: string;
-  percentage: number;
-  desc: string;
-}) {
-  const isNegative = percentage < 0;
-  const absVal = Math.abs(percentage);
-
-  return (
-    <div>
-      <div className="flex justify-between text-[11px] mb-1">
-        <span className="font-mono text-[var(--white)] font-medium">{label}</span>
-        <span className="mono text-[var(--gray-300)]">
-          {isNegative ? `${percentage}% (recovery)` : `+${percentage}% fatigue`}
-        </span>
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-[var(--gray-800)] overflow-hidden">
-        <div
-          className={`h-full transition-all duration-500 ${
-            isNegative ? "bg-[var(--gray-500)]" : "bg-[var(--cyan)]"
-          }`}
-          style={{ width: `${Math.min(100, absVal * 2)}%` }}
-        />
-      </div>
-      <div className="text-[9px] text-[var(--gray-500)] mt-0.5">{desc}</div>
-    </div>
-  );
-}
-
-function mockSnapshots() {
-  return [
-    { timeMinutes: 0, fatigue: 12, mobility: 94, endurance: 91, performance: 93 },
-    { timeMinutes: 120, fatigue: 32, mobility: 84, endurance: 82, performance: 84 },
-    { timeMinutes: 240, fatigue: 48, mobility: 75, endurance: 71, performance: 74 },
-    { timeMinutes: 360, fatigue: 54, mobility: 73, endurance: 66, performance: 70 },
-    { timeMinutes: 480, fatigue: 58, mobility: 72, endurance: 64, performance: 69 },
-  ];
-}

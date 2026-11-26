@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { runSimulation } from "@/lib/simulation";
 import type { MissionInputs, SoldierBaseline } from "@/lib/simulation";
@@ -114,6 +115,7 @@ export async function POST(request: Request) {
       soldierId ?? scenarioRecord.soldierId ?? scenarioInput?.soldierId ?? null;
 
     let baseline: Partial<SoldierBaseline> = {};
+    let baselineProvenanceSnapshot: Prisma.InputJsonObject | undefined;
     if (resolvedSoldierId) {
       const soldier = await prisma.soldier.findUnique({
         where: { id: resolvedSoldierId },
@@ -125,6 +127,20 @@ export async function POST(request: Request) {
         );
       }
       baseline = toBaseline(soldier);
+      baselineProvenanceSnapshot = {
+        baselineMobility: soldier.mobilityProvenance ?? "UNKNOWN",
+        baselineEndurance: soldier.enduranceProvenance ?? "UNKNOWN",
+        baselineStrength: soldier.strengthProvenance ?? "UNKNOWN",
+        baselineRecovery: soldier.recoveryProvenance ?? "UNKNOWN",
+        typicalLoadKg: soldier.typicalLoadProvenance ?? "UNKNOWN",
+      };
+    }
+
+    if (scenarioRecord.soldierId && resolvedSoldierId !== scenarioRecord.soldierId) {
+      return NextResponse.json(
+        { error: "Selected soldier does not match the scenario soldier. Edit the scenario or use its assigned soldier." },
+        { status: 409 }
+      );
     }
 
     const inputs = toMissionInputs(scenarioRecord);
@@ -142,6 +158,10 @@ export async function POST(request: Request) {
         finalMobility: result.final.mobility,
         finalEndurance: result.final.endurance,
         finalPerformance: result.final.performance,
+        inputsSnapshot: inputs as unknown as Prisma.InputJsonObject,
+        baselineSnapshot: result.baselineUsed as unknown as Prisma.InputJsonObject,
+        baselineProvenanceSnapshot,
+        modelVersion: result.modelVersion,
         snapshots: {
           create: result.snapshots.map((p) => ({
             timeMinutes: p.timeMinutes,

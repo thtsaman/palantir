@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/primitives";
 import { prisma } from "@/lib/prisma";
 import { terrainLabel } from "@/lib/simulation/factors";
-import { formatHoursLabel, formatMinutes } from "@/lib/utils";
+import { formatHoursLabel } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -18,15 +18,14 @@ export default async function SimulatorIndexPage() {
     include: {
       soldier: true,
       runs: {
+        where: { status: "COMPLETED" },
         orderBy: { createdAt: "desc" },
         take: 1,
       },
     },
   });
 
-  const featured = scenarios.find((s) => s.name === "High Altitude Patrol");
-  const rest = scenarios.filter((s) => s.id !== featured?.id);
-  const ordered = featured ? [featured, ...rest] : scenarios;
+  const ordered = scenarios;
 
   return (
     <AppShell
@@ -54,41 +53,25 @@ export default async function SimulatorIndexPage() {
         <div className="grid gap-3">
           {ordered.map((s) => {
             const run = s.runs[0];
-            const isFeatured = s.name === "High Altitude Patrol";
             return (
               <Link
                 key={s.id}
                 href={`/simulator/${s.id}`}
-                className={
-                  isFeatured
-                    ? "panel block p-5 transition-colors border-[var(--cyan)]/35 hover:border-[var(--cyan)]/55"
-                    : "panel block p-4 transition-colors hover:border-[var(--cyan)]/30"
-                }
+                className="panel block p-4 transition-colors hover:border-[var(--cyan)]/30 sm:p-5"
               >
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
-                      {isFeatured ? (
-                        <StatusBadge tone="cyan">Recommended</StatusBadge>
-                      ) : null}
                       <StatusBadge tone="muted">{s.timeOfDay}</StatusBadge>
                       {s.soldier ? (
                         <StatusBadge>SOLDIER {s.soldier.soldierCode}</StatusBadge>
                       ) : (
                         <StatusBadge tone="muted">GENERIC BASELINE</StatusBadge>
                       )}
-                      {run ? (
-                        <StatusBadge tone="cyan">RUN READY</StatusBadge>
-                      ) : (
-                        <StatusBadge tone="muted">COMPUTE ON OPEN</StatusBadge>
-                      )}
+                      {run ? <StatusBadge tone="cyan">SAVED RESULT</StatusBadge> : <StatusBadge tone="muted">PREVIEW ON OPEN</StatusBadge>}
                     </div>
                     <h2
-                      className={
-                        isFeatured
-                          ? "text-[22px] font-semibold tracking-tight text-[var(--white)]"
-                          : "text-[17px] font-semibold tracking-tight text-[var(--white)]"
-                      }
+                      className="text-[18px] font-semibold tracking-tight text-[var(--white)] sm:text-[20px]"
                     >
                       {s.name}
                     </h2>
@@ -103,15 +86,12 @@ export default async function SimulatorIndexPage() {
                       <span className="mono tabular">
                         {formatHoursLabel(s.durationMinutes)}
                       </span>
-                      <span className="mono tabular">
-                        {formatMinutes(s.durationMinutes)} total
-                      </span>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
                     <div className="label-xs mb-1">Latest Index</div>
-                    <div className="mono tabular text-[36px] leading-none text-[var(--cyan)]">
-                      {run ? Math.round(run.finalPerformance ?? 0) : "—"}
+                    <div className="mono tabular text-[32px] leading-none text-[var(--white)]">
+                      {run?.finalPerformance == null ? "—" : Math.round(run.finalPerformance)}
                     </div>
                     <div className="mt-2 text-[12px] text-[var(--cyan)]">
                       Open simulation →

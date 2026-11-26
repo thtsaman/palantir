@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { soldierCsvRowSchema } from "@/lib/validation/schemas";
 
 const importBodySchema = z.object({
-  rows: z.array(z.unknown()),
+  rows: z.array(z.unknown()).max(500),
 });
 
 export async function POST(request: Request) {
@@ -83,6 +83,21 @@ export async function POST(request: Request) {
             baselineStrength: data.baselineStrength,
             baselineRecovery: data.baselineRecovery,
             typicalLoadKg: data.typicalLoadKg,
+            displayName: data.displayName ?? null,
+            ageYears: data.ageYears ?? null,
+            heightCm: data.heightCm ?? null,
+            weightKg: data.weightKg ?? null,
+            fitnessAssessment: data.fitnessAssessment ?? null,
+            assessmentDate: data.assessmentDate ? new Date(data.assessmentDate) : null,
+            assessmentSource: data.assessmentSource ?? "CSV import",
+            profileProvenance: "IMPORTED",
+            profileSource: "CSV import",
+            profileAssessedAt: data.assessmentDate ? new Date(data.assessmentDate) : null,
+            mobilityProvenance: "IMPORTED",
+            enduranceProvenance: "IMPORTED",
+            strengthProvenance: "IMPORTED",
+            recoveryProvenance: "IMPORTED",
+            typicalLoadProvenance: "IMPORTED",
             status: "ACTIVE",
           },
         });

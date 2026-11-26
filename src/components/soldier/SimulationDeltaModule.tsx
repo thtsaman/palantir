@@ -2,7 +2,7 @@
 
 import React from "react";
 import { ArrowRight, Zap, TrendingDown, Layers, Compass, Thermometer, Clock } from "lucide-react";
-import { Panel, StatusBadge } from "@/components/ui/primitives";
+import { Panel, SectionHeader, StatusBadge } from "@/components/ui/primitives";
 
 interface SimulationDeltaModuleProps {
   baselineIndex: number;
@@ -18,15 +18,18 @@ interface SimulationDeltaModuleProps {
 
 export function SimulationDeltaModule({
   baselineIndex,
-  latestPerformance = 28,
-  latestFatigue = 100,
-  scenarioName = "S-107 Mission Profile",
-  terrainType = "Mountain",
-  altitudeMeters = 3500,
-  loadKg = 18,
-  durationMinutes = 360,
+  latestPerformance,
+  latestFatigue,
+  scenarioName,
+  terrainType,
+  altitudeMeters,
+  loadKg,
+  durationMinutes,
   className = "",
 }: SimulationDeltaModuleProps) {
+  if (latestPerformance == null || latestFatigue == null) {
+    return <Panel className={`!p-5 ${className}`}><SectionHeader title="Simulation response" subtitle="No simulation run is recorded for this soldier" action={<StatusBadge tone="muted">NO RUN</StatusBadge>} /><p className="mt-3 text-[12px] text-[var(--gray-500)]">Run a mission simulation to see a comparison with the baseline. No sample values are substituted.</p></Panel>;
+  }
   const delta = Math.round(latestPerformance - baselineIndex);
 
   return (
@@ -64,10 +67,10 @@ export function SimulationDeltaModule({
               MISSION SCENARIO
             </div>
             <div className="text-[13px] font-semibold text-[var(--white)] truncate max-w-[180px] mx-auto">
-              {scenarioName}
+              {scenarioName ?? "Unnamed scenario"}
             </div>
             <div className="mono text-[10px] text-[var(--gray-300)]">
-              {terrainType} · {altitudeMeters}m · {loadKg}kg
+              {terrainType ?? "Terrain not recorded"} · {altitudeMeters ?? "—"}m · {loadKg ?? "—"}kg
             </div>
           </div>
 
@@ -107,10 +110,10 @@ export function SimulationDeltaModule({
 
         {/* Condition Chips */}
         <div className="flex flex-wrap gap-2 text-[11px] mono">
-          <ConditionTag icon={<Layers size={12} />} label="LOAD" val={`${loadKg} KG`} />
-          <ConditionTag icon={<Compass size={12} />} label="ALTITUDE" val={`${altitudeMeters} M`} />
-          <ConditionTag icon={<Thermometer size={12} />} label="TERRAIN" val={terrainType} />
-          <ConditionTag icon={<Clock size={12} />} label="DURATION" val={`${durationMinutes / 60} H`} />
+          <ConditionTag icon={<Layers size={12} />} label="LOAD" val={`${loadKg ?? "—"} KG`} />
+          <ConditionTag icon={<Compass size={12} />} label="ALTITUDE" val={`${altitudeMeters ?? "—"} M`} />
+          <ConditionTag icon={<Thermometer size={12} />} label="TERRAIN" val={terrainType ?? "—"} />
+          <ConditionTag icon={<Clock size={12} />} label="DURATION" val={`${(durationMinutes ?? 0) / 60} H`} />
         </div>
 
         {/* Simulated Impact List */}
@@ -119,14 +122,14 @@ export function SimulationDeltaModule({
             SIMULATED HUMAN IMPACT
           </div>
           <ImpactRow label="Fatigue Accumulation" val={`+${latestFatigue}%`} note="Increased metabolic workload" />
-          <ImpactRow label="Mobility Index" val="36 / 100" note="Heavy load incline impact" />
-          <ImpactRow label="Endurance Reserve" val="30 / 100" note="Prolonged 6h exposure" />
+          <ImpactRow label="Mobility Index" val="See recorded run" note="No contribution breakdown is available" />
+          <ImpactRow label="Endurance Reserve" val="See recorded run" note="No contribution breakdown is available" />
         </div>
 
         <div className="rounded bg-[#080e19] p-3 border border-[var(--border)] text-[11px] text-[var(--gray-300)] flex items-center gap-2">
           <Zap className="h-4 w-4 text-[var(--cyan)] shrink-0" />
           <span>
-            Higher load, prolonged duration and limited recovery increase simulated fatigue.
+              This is a deterministic prototype output, not a clinical measurement or causal assessment.
           </span>
         </div>
       </Panel>

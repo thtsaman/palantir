@@ -71,8 +71,8 @@ export function ReportIngestClient() {
     <Panel className="!p-5 space-y-5">
       <SectionHeader
         title="Ingest Report"
-        subtitle="Paste an after-action or training report to structure operational learning"
-        action={<StatusBadge tone="muted">AI-ASSISTED</StatusBadge>}
+        subtitle="Paste a report to prepare a review-required draft. Extracted fields and lessons are never approved automatically."
+        action={<StatusBadge tone="muted">REVIEW REQUIRED</StatusBadge>}
       />
 
       <label className="block space-y-1.5">
@@ -122,11 +122,11 @@ export function ReportIngestClient() {
       {response ? (
         <div className="space-y-4 border-t border-[var(--border)] pt-4">
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone="cyan">STRUCTURED OPERATION</StatusBadge>
+              <StatusBadge tone="cyan">DRAFT · REVIEW REQUIRED</StatusBadge>
             {response.mode === "demo" ? (
-              <StatusBadge tone="muted">AI ANALYSIS: DEMO MODE</StatusBadge>
+              <StatusBadge tone="muted">DETERMINISTIC FALLBACK · NOT AI</StatusBadge>
             ) : (
-              <StatusBadge tone="cyan">AI ANALYSIS</StatusBadge>
+              <StatusBadge tone="cyan">HUGGING FACE EXTRACTION</StatusBadge>
             )}
           </div>
 

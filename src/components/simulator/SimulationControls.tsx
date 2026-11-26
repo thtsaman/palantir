@@ -4,14 +4,9 @@ import React from "react";
 import { Button } from "@/components/ui/Button";
 import { SliderField } from "@/components/ui/SliderField";
 import { cn, formatMinutes } from "@/lib/utils";
-import { Play, Pause, RotateCcw, FastForward } from "lucide-react";
+import { Play, Pause, RotateCcw } from "lucide-react";
 
 const SPEEDS = [1, 2, 4] as const;
-
-export interface TimelineEvent {
-  timeMinutes: number;
-  label: string;
-}
 
 interface SimulationControlsProps {
   playing: boolean;
@@ -38,14 +33,6 @@ export function SimulationControls({
 }: SimulationControlsProps) {
   const clampedTime = Math.min(duration, Math.max(0, currentTime));
   const percent = duration > 0 ? Math.round((clampedTime / duration) * 100) : 0;
-
-  const milestoneEvents: TimelineEvent[] = [
-    { timeMinutes: 0, label: "START" },
-    { timeMinutes: Math.round(duration * 0.25), label: "CP-01" },
-    { timeMinutes: Math.round(duration * 0.5), label: "REST" },
-    { timeMinutes: Math.round(duration * 0.75), label: "CP-02" },
-    { timeMinutes: duration, label: "END" },
-  ];
 
   return (
     <div className={`space-y-3.5 ${className}`}>
@@ -109,39 +96,11 @@ export function SimulationControls({
         </div>
       </div>
 
-      {/* Milestone Timeline Track */}
-      <div className="space-y-1">
-        <div className="relative h-6 w-full flex items-center select-none">
-          {milestoneEvents.map((ev, idx) => {
-            const evPercent = duration > 0 ? (ev.timeMinutes / duration) * 100 : 0;
-            const isReached = clampedTime >= ev.timeMinutes;
-
-            return (
-              <button
-                key={idx}
-                onClick={() => onSeek(ev.timeMinutes)}
-                style={{ left: `${evPercent}%` }}
-                className="absolute -translate-x-1/2 flex flex-col items-center group cursor-pointer focus:outline-none"
-              >
-                <span
-                  className={cn(
-                    "h-2.5 w-2.5 rounded-full border transition-all duration-150",
-                    isReached
-                      ? "bg-[var(--cyan)] border-[var(--cyan)] shadow-[0_0_6px_rgba(85,216,245,0.6)]"
-                      : "bg-[#0B1220] border-[var(--gray-500)] group-hover:border-[var(--cyan)]"
-                  )}
-                />
-                <span className="mono text-[8px] uppercase tracking-wider text-[var(--gray-500)] group-hover:text-[var(--cyan)] mt-0.5 font-medium">
-                  {ev.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Scrub Slider */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-[10px] text-[var(--gray-500)]"><span>Elapsed mission time</span><span>{percent}%</span></div>
+        <div className="h-1 overflow-hidden rounded-full bg-[var(--gray-800)]" aria-hidden="true"><div className="h-full rounded-full bg-[var(--cyan)] transition-[width]" style={{ width: `${percent}%` }} /></div>
         <SliderField
-          label="Mission Timeline"
+          label="Seek mission time"
           value={clampedTime}
           min={0}
           max={Math.max(1, duration)}

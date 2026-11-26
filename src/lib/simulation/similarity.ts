@@ -1,5 +1,6 @@
 import { clamp01 } from "./factors";
 import type { SimilarityInput, SimilarityMatch, TerrainType } from "./types";
+import { parseDocumentedNumber } from "./historical-context";
 
 const TERRAIN_ORD: Record<TerrainType, number> = {
   FLAT: 0,
@@ -7,6 +8,8 @@ const TERRAIN_ORD: Record<TerrainType, number> = {
   MIXED: 2,
   MOUNTAIN: 3,
   STEEP_MOUNTAIN: 4,
+  DESERT: 1,
+  FOREST: 2,
 };
 
 function terrainDist(a: TerrainType, b: TerrainType): number {
@@ -65,17 +68,11 @@ export function rankSimilarScenarios(
 }
 
 /** Convert altitude band strings like "3000-4000m" to midpoint meters */
-export function parseAltitudeBand(band: string): number {
-  const nums = band.match(/-?\d+/g)?.map(Number) ?? [];
-  if (nums.length >= 2) return (nums[0]! + nums[1]!) / 2;
-  if (nums.length === 1) return nums[0]!;
-  return 2000;
+export function parseAltitudeBand(band: string): number | null {
+  return parseDocumentedNumber(band, "altitude");
 }
 
 /** Convert temperature band like "-10 to 0" to midpoint °C */
-export function parseTemperatureBand(band: string): number {
-  const nums = band.match(/-?\d+/g)?.map(Number) ?? [];
-  if (nums.length >= 2) return (nums[0]! + nums[1]!) / 2;
-  if (nums.length === 1) return nums[0]!;
-  return 5;
+export function parseTemperatureBand(band: string): number | null {
+  return parseDocumentedNumber(band, "temperature");
 }

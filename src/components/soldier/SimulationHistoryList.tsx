@@ -5,8 +5,9 @@ import Link from "next/link";
 import { Panel, SectionHeader, StatusBadge } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { terrainLabel } from "@/lib/simulation/factors";
+import type { TerrainType } from "@/lib/simulation/types";
 import { formatHoursLabel } from "@/lib/utils";
-import { ChevronDown, ChevronUp, Play, History, Activity } from "lucide-react";
+import { ChevronDown, ChevronUp, Play, History } from "lucide-react";
 
 export interface MissionRunRecord {
   id: string;
@@ -102,7 +103,7 @@ export function SimulationHistoryList({
 
                 {/* Key Conditions Tag */}
                 <div className="mono text-[11px] text-[var(--gray-300)] bg-[#090f1b] px-2.5 py-1 rounded border border-[var(--border)]">
-                  {terrainLabel(run.scenario.terrainType as any)} · {formatHoursLabel(run.scenario.durationMinutes)} · {run.scenario.loadKg}kg
+                  {terrainLabel(run.scenario.terrainType as TerrainType)} · {formatHoursLabel(run.scenario.durationMinutes)} · {run.scenario.loadKg}kg
                 </div>
 
                 {/* Mini Sparkline */}

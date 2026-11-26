@@ -1,12 +1,13 @@
 import { clamp100, normalizeFactors } from "./factors";
 import type {
   MissionInputs,
+  NormalizedFactors,
   PerformancePoint,
   SimulationResult,
   SoldierBaseline,
 } from "./types";
 
-const DEFAULT_BASELINE: SoldierBaseline = {
+export const DEFAULT_BASELINE: SoldierBaseline = {
   baselineMobility: 85,
   baselineEndurance: 82,
   baselineStrength: 80,
@@ -14,6 +15,13 @@ const DEFAULT_BASELINE: SoldierBaseline = {
   experienceYears: 4,
   typicalLoadKg: 18,
 };
+
+export const SIMULATION_MODEL_VERSION = "deterministic-prototype-1";
+
+/** Exposes the existing strength-availability calculation for comparative views; the model formula is unchanged. */
+export function strengthAvailabilityAt(factors: NormalizedFactors, baseline: SoldierBaseline, fatigue: number): number {
+  return clamp100(baseline.baselineStrength - (factors.loadFactor * 10 + fatigue * 0.2 + factors.terrainFactor * 5));
+}
 
 /**
  * Choose timestep from duration: 15 min for short, 30 min for long missions.
@@ -86,9 +94,7 @@ export function runSimulation(
         experienceBuffer * 15
     );
 
-    const strengthDrain =
-      factors.loadFactor * 10 + fatigue * 0.2 + factors.terrainFactor * 5;
-    const strengthAvail = clamp100(b.baselineStrength - strengthDrain);
+    const strengthAvail = strengthAvailabilityAt(factors, b, fatigue);
 
     // Weighted combination — relative performance index
     const performance = clamp100(
@@ -122,6 +128,8 @@ export function runSimulation(
   const explanations = buildExplanations(inputs, factors);
 
   return {
+    baselineUsed: b,
+    modelVersion: SIMULATION_MODEL_VERSION,
     factors,
     snapshots,
     final: snapshots[snapshots.length - 1]!,

@@ -7,7 +7,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[var(--ink)] text-[var(--off-white)]">
       <header className="flex h-14 items-center justify-between border-b border-[var(--border)] px-6 md:px-10">
         <div className="text-[13px] font-semibold tracking-tight text-[var(--white)]">
-          Human Performance Simulation
+          Defence Human Performance Simulation
         </div>
         <div className="flex items-center gap-3">
           <StatusBadge tone="muted">DEMO ENVIRONMENT</StatusBadge>
@@ -23,33 +23,31 @@ export default function LandingPage() {
         </div>
         <div className="relative mx-auto grid max-w-6xl gap-10 px-6 py-16 md:grid-cols-[1.1fr_0.9fr] md:px-10 md:py-24">
           <div>
-            <div className="label-xs mb-4">Mission Readiness Platform</div>
+            <div className="label-xs mb-4">Defence · Mission Readiness · Operational Learning</div>
             <h1 className="max-w-xl text-[42px] font-bold leading-[1.05] tracking-tight text-[var(--white)] md:text-[52px]">
               Simulate the human.
               <br />
               Simulate the mission.
             </h1>
             <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-[var(--gray-300)]">
-              A human-performance simulation platform that models how mission
-              conditions influence the simulated human state over time.
+              A defence-focused platform for analysing how mission conditions shape modeled personnel performance, fatigue, recovery and group capability across synthetic training scenarios.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button href="/simulator">Open Simulation</Button>
+              <Button href="/simulator">Open Mission Simulator</Button>
               <Button href="/dashboard" variant="secondary">
                 Mission Readiness
               </Button>
             </div>
             <p className="mt-4 text-[11px] text-[var(--gray-500)]">
-              Prototype relative indices. Not clinical or medically validated
-              measurements.
+              Human-performance indices are prototype estimates, not clinical measurements or validated combat-effectiveness assessments.
             </p>
           </div>
 
           <div className="panel-lg relative flex min-h-[280px] flex-col justify-between p-5">
             <div className="flex items-center justify-between">
-              <StatusBadge tone="cyan">Live Model</StatusBadge>
+                <StatusBadge tone="cyan">Synthetic example · not a live run</StatusBadge>
               <span className="mono text-[11px] text-[var(--gray-500)]">
-                HIGH ALTITUDE PATROL
+                  HIGH ALTITUDE PATROL · FICTIONAL
               </span>
             </div>
             <div className="my-6">
@@ -66,10 +64,9 @@ export default function LandingPage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-6 py-14 md:px-10">
-        <div className="label-xs mb-2">The Problem</div>
+          <div className="label-xs mb-2">Operational human performance</div>
         <h2 className="max-w-2xl text-[24px] font-semibold text-[var(--white)]">
-          Mission planning can model the environment. Human performance changes
-          with it.
+          Understand the human dimension of defence missions.
         </h2>
       </section>
 
@@ -129,7 +126,7 @@ export default function LandingPage() {
 
       <footer className="border-t border-[var(--border)] px-6 py-6 text-[11px] text-[var(--gray-500)] md:px-10">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
-          <span>Human Performance Simulation · Prototype</span>
+          <span>Defence Human Performance Simulation · synthetic training environment</span>
           <Link href="/settings" className="hover:text-[var(--gray-300)]">
             System status
           </Link>

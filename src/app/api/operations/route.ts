@@ -11,6 +11,9 @@ const lessonCreateSchema = z.object({
 
 const operationCreateSchema = z.object({
   title: z.string().min(1),
+  operationDate: z.string().date().nullable().optional(),
+  missionCategory: z.string().trim().max(120).nullable().optional(),
+  adversaryContext: z.string().trim().max(2000).nullable().optional(),
   region: z.string().min(1),
   terrainType: terrainSchema,
   altitudeBand: z.string().min(1),
@@ -70,6 +73,9 @@ export async function POST(request: Request) {
     const operation = await prisma.historicalOperation.create({
       data: {
         title: data.title,
+        operationDate: data.operationDate ? new Date(`${data.operationDate}T00:00:00.000Z`) : null,
+        missionCategory: data.missionCategory ?? null,
+        adversaryContext: data.adversaryContext ?? null,
         region: data.region,
         terrainType: data.terrainType,
         altitudeBand: data.altitudeBand,
@@ -83,13 +89,14 @@ export async function POST(request: Request) {
         rawReport: data.rawReport ?? null,
         aiSummary: data.aiSummary ?? null,
         status: data.status ?? "STRUCTURED",
-        isDemo: data.isDemo ?? true,
+        isDemo: data.isDemo ?? false,
         lessons: lessons
           ? {
               create: lessons.map((l) => ({
                 title: l.title,
                 description: l.description,
                 category: l.category,
+                lifecycle: "IDENTIFIED",
               })),
             }
           : undefined,

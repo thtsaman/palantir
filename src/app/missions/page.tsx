@@ -19,6 +19,7 @@ export default async function MissionsPage() {
     include: {
       soldier: true,
       runs: {
+        where: { status: "COMPLETED" },
         orderBy: { createdAt: "desc" },
         take: 1,
       },
@@ -56,7 +57,7 @@ export default async function MissionsPage() {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <StatusBadge tone="cyan">SIMULATED</StatusBadge>
+                      <StatusBadge tone={run ? "cyan" : "muted"}>{run ? "SAVED RUN" : "NOT RUN"}</StatusBadge>
                       <StatusBadge tone="muted">{s.timeOfDay}</StatusBadge>
                       {s.soldier ? (
                         <StatusBadge>SOLDIER {s.soldier.soldierCode}</StatusBadge>
@@ -88,8 +89,8 @@ export default async function MissionsPage() {
                   <div className="flex shrink-0 flex-col items-end gap-3">
                     <div className="text-right">
                       <div className="label-xs mb-1">Latest Index</div>
-                      <div className="mono tabular text-[32px] leading-none text-[var(--cyan)]">
-                        {run ? Math.round(run.finalPerformance ?? 0) : "—"}
+                      <div className="mono tabular text-[32px] leading-none text-[var(--white)]">
+                        {run?.finalPerformance == null ? "—" : Math.round(run.finalPerformance)}
                       </div>
                     </div>
                     <div className="flex flex-wrap justify-end gap-2">

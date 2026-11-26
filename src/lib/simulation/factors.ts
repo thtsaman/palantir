@@ -16,6 +16,9 @@ const TERRAIN_WEIGHT: Record<TerrainType, number> = {
   MOUNTAIN: 0.65,
   STEEP_MOUNTAIN: 0.9,
   MIXED: 0.5,
+  // Prototype mappings for new visual categories; existing terrain weights stay unchanged.
+  DESERT: 0.35,
+  FOREST: 0.5,
 };
 
 /**

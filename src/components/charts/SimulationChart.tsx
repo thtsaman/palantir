@@ -14,13 +14,13 @@ import type { PerformancePoint } from "@/lib/simulation/types";
 import { formatMinutes } from "@/lib/utils";
 
 const SERIES = [
-  { key: "fatigue", label: "Fatigue", stroke: "#55D8F5", dash: undefined, opacity: 1, width: 2 },
-  { key: "mobility", label: "Mobility", stroke: "#9AA3B2", dash: "4 3", opacity: 0.95, width: 1.5 },
-  { key: "endurance", label: "Endurance", stroke: "#D1D7E0", dash: "2 3", opacity: 0.85, width: 1.5 },
+  { key: "fatigue", label: "Fatigue index", stroke: "#E9B96C", dash: undefined, opacity: 1, width: 1.9 },
+  { key: "mobility", label: "Mobility index", stroke: "#66D4DD", dash: "5 3", opacity: 0.95, width: 1.7 },
+  { key: "endurance", label: "Endurance index", stroke: "#9CAFC2", dash: "2 3", opacity: 0.9, width: 1.7 },
   {
     key: "performance",
-    label: "Performance",
-    stroke: "#F5F7FA",
+    label: "Performance index",
+    stroke: "#73C99B",
     dash: undefined,
     opacity: 1,
     width: 2.2,
@@ -37,6 +37,7 @@ export function SimulationChart({
   height = 300,
   showLegend = true,
   currentTime,
+  visibleThroughTime,
   events,
 }: {
   data: PerformancePoint[];
@@ -44,21 +45,29 @@ export function SimulationChart({
   showLegend?: boolean;
   /** Mission-time cursor (minutes) drawn as a vertical reference. */
   currentTime?: number;
+  /** When supplied, only the trajectory through the current playback checkpoint is drawn. */
+  visibleThroughTime?: number;
   /** Mission milestone markers */
   events?: EventMarker[];
 }) {
   const maxTime = data.length > 0 ? Math.max(...data.map((d) => d.timeMinutes)) : 480;
+  const visibleData = typeof visibleThroughTime === "number" ? data.filter((point) => point.timeMinutes <= visibleThroughTime) : data;
+  if (typeof visibleThroughTime === "number" && visibleData.length > 0 && visibleData.at(-1)!.timeMinutes < visibleThroughTime) {
+    const before = [...data].reverse().find((point) => point.timeMinutes < visibleThroughTime);
+    const after = data.find((point) => point.timeMinutes > visibleThroughTime);
+    if (before && after) {
+      const ratio = (visibleThroughTime - before.timeMinutes) / (after.timeMinutes - before.timeMinutes);
+      const interpolate = (key: "fatigue" | "mobility" | "endurance" | "performance") => before[key] + (after[key] - before[key]) * ratio;
+      visibleData.push({ timeMinutes: visibleThroughTime, fatigue: interpolate("fatigue"), mobility: interpolate("mobility"), endurance: interpolate("endurance"), performance: interpolate("performance") });
+    }
+  }
 
-  const defaultEvents: EventMarker[] = events ?? [
-    { timeMinutes: 0, label: "START" },
-    { timeMinutes: Math.round(maxTime * 0.25), label: "TERRAIN CHANGE" },
-    { timeMinutes: Math.round(maxTime * 0.5), label: "MIDPOINT / REST" },
-    { timeMinutes: Math.round(maxTime * 0.75), label: "PEAK EFFORT" },
-    { timeMinutes: maxTime, label: "END" },
-  ];
+  const defaultEvents: EventMarker[] = events ?? [];
+
+  if (data.length === 0) return <div className="panel flex items-center justify-center p-8 text-[13px] text-[var(--gray-500)]" style={{ minHeight: height }}>No saved time-series data for this run.</div>;
 
   return (
-    <div className="w-full">
+    <div className="w-full" role="img" aria-label={`Simulation timeline, mission time in minutes, relative model indices from 0 to 100. ${data.length} saved data points.`}>
       {showLegend ? (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-[11px] text-[var(--gray-300)] border-b border-[var(--border)]/60 pb-3">
           <div className="flex flex-wrap gap-4">
@@ -85,28 +94,30 @@ export function SimulationChart({
 
       <div style={{ width: "100%", height }}>
         <ResponsiveContainer>
-          <LineChart data={data} margin={{ top: 12, right: 20, left: -10, bottom: 0 }}>
-            <CartesianGrid stroke="rgba(232,236,241,0.06)" vertical={false} />
+          <LineChart data={visibleData} margin={{ top: 12, right: 20, left: -10, bottom: 0 }}>
+            <CartesianGrid stroke="rgba(201,218,221,0.075)" vertical={false} />
             <XAxis
               dataKey="timeMinutes"
+              type="number"
+              domain={[0, maxTime]}
               tickFormatter={(v) => formatMinutes(Number(v))}
-              stroke="#6B7380"
-              tick={{ fill: "#9AA3B2", fontSize: 11, fontFamily: "var(--font-mono)" }}
-              axisLine={{ stroke: "rgba(232,236,241,0.14)" }}
+              stroke="#718188"
+              tick={{ fill: "#9AA9AD", fontSize: 11, fontFamily: "var(--font-mono)" }}
+              axisLine={{ stroke: "rgba(201,218,221,0.17)" }}
               tickLine={false}
             />
             <YAxis
               domain={[0, 100]}
-              stroke="#6B7380"
-              tick={{ fill: "#6B7380", fontSize: 10, fontFamily: "var(--font-mono)" }}
+              stroke="#718188"
+              tick={{ fill: "#718188", fontSize: 10, fontFamily: "var(--font-mono)" }}
               axisLine={false}
               tickLine={false}
               width={36}
               label={{
-                value: "Relative Simulated Index",
+                value: "Relative index (0–100)",
                 angle: -90,
                 position: "insideLeft",
-                fill: "#6B7380",
+                fill: "#718188",
                 fontSize: 10,
                 offset: 15,
               }}
@@ -115,7 +126,7 @@ export function SimulationChart({
               content={({ active, payload, label }) => {
                 if (!active || !payload || !payload.length) return null;
                 return (
-                  <div className="rounded-md border border-[var(--border-strong)] bg-[#0c1424] p-3 text-[12px] shadow-xl space-y-1.5 min-w-[170px]">
+                  <div className="rounded-lg border border-[var(--border-strong)] bg-[#101821] p-3 text-[12px] shadow-xl space-y-1.5 min-w-[180px]">
                     <div className="mono text-[11px] font-semibold text-[var(--cyan)] border-b border-[var(--border)] pb-1">
                       Time: {formatMinutes(Number(label))}
                     </div>
@@ -138,7 +149,7 @@ export function SimulationChart({
             {typeof currentTime === "number" ? (
               <ReferenceLine
                 x={currentTime}
-                stroke="#55D8F5"
+                stroke="#66D4DD"
                 strokeOpacity={0.8}
                 strokeWidth={1.5}
                 strokeDasharray="3 3"
@@ -155,7 +166,7 @@ export function SimulationChart({
                 label={{
                   value: ev.label,
                   position: "top",
-                  fill: "rgba(154, 163, 178, 0.8)",
+                  fill: "rgba(154, 169, 173, 0.8)",
                   fontSize: 9,
                   fontFamily: "var(--font-mono)",
                 }}
@@ -174,7 +185,7 @@ export function SimulationChart({
                 strokeWidth={s.width}
                 strokeDasharray={s.dash}
                 dot={false}
-                activeDot={{ r: 4, stroke: s.stroke, strokeWidth: 2, fill: "#0B1220" }}
+                activeDot={{ r: 4, stroke: s.stroke, strokeWidth: 2, fill: "#0a0f15" }}
                 isAnimationActive={false}
               />
             ))}

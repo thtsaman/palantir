@@ -6,9 +6,41 @@ export const terrainSchema = z.enum([
   "MOUNTAIN",
   "STEEP_MOUNTAIN",
   "MIXED",
+  "DESERT",
+  "FOREST",
 ]);
 
 export const timeOfDaySchema = z.enum(["DAY", "NIGHT"]);
+
+export const dataProvenanceSchema = z.enum([
+  "USER_ENTERED",
+  "IMPORTED",
+  "SYNTHETIC_DEMO",
+  "MODEL_GENERATED",
+]);
+
+const ageSchema = z.number().int().min(18).max(75).nullable().optional();
+const heightSchema = z.number().min(120).max(230).nullable().optional();
+const weightSchema = z.number().min(35).max(250).nullable().optional();
+const dateSchema = z.string().date().nullable().optional();
+
+export const soldierProfileFieldsSchema = z.object({
+  displayName: z.string().trim().min(1).max(80).nullable().optional(),
+  ageYears: ageSchema,
+  heightCm: heightSchema,
+  weightKg: weightSchema,
+  fitnessAssessment: z.string().trim().max(1000).nullable().optional(),
+  assessmentDate: dateSchema,
+  assessmentSource: z.string().trim().max(200).nullable().optional(),
+  profileProvenance: dataProvenanceSchema.optional(),
+  profileSource: z.string().trim().max(200).nullable().optional(),
+  profileAssessedAt: dateSchema,
+  mobilityProvenance: dataProvenanceSchema.optional(),
+  enduranceProvenance: dataProvenanceSchema.optional(),
+  strengthProvenance: dataProvenanceSchema.optional(),
+  recoveryProvenance: dataProvenanceSchema.optional(),
+  typicalLoadProvenance: dataProvenanceSchema.optional(),
+});
 
 export const soldierCreateSchema = z.object({
   soldierCode: z.string().min(1).max(32),
@@ -20,7 +52,7 @@ export const soldierCreateSchema = z.object({
   baselineRecovery: z.number().int().min(0).max(100),
   typicalLoadKg: z.number().min(0).max(50),
   status: z.string().optional(),
-});
+}).extend(soldierProfileFieldsSchema.shape);
 
 export const soldierCsvRowSchema = z.object({
   soldierCode: z.string().min(1),
@@ -31,6 +63,13 @@ export const soldierCsvRowSchema = z.object({
   baselineStrength: z.coerce.number().int().min(0).max(100),
   baselineRecovery: z.coerce.number().int().min(0).max(100),
   typicalLoadKg: z.coerce.number().min(0).max(50),
+  displayName: z.string().trim().min(1).max(80).optional(),
+  ageYears: z.preprocess((value) => value === "" ? undefined : value, z.coerce.number().int().min(18).max(75).optional()),
+  heightCm: z.preprocess((value) => value === "" ? undefined : value, z.coerce.number().min(120).max(230).optional()),
+  weightKg: z.preprocess((value) => value === "" ? undefined : value, z.coerce.number().min(35).max(250).optional()),
+  fitnessAssessment: z.preprocess((value) => value === "" ? undefined : value, z.string().trim().max(1000).optional()),
+  assessmentDate: z.preprocess((value) => value === "" ? undefined : value, z.string().date().optional()),
+  assessmentSource: z.preprocess((value) => value === "" ? undefined : value, z.string().trim().max(200).optional()),
 });
 
 export const missionScenarioSchema = z.object({
@@ -46,6 +85,23 @@ export const missionScenarioSchema = z.object({
   description: z.string().optional(),
   soldierId: z.string().optional().nullable(),
   sourceOperationId: z.string().optional().nullable(),
+});
+
+export const missionInputsSchema = missionScenarioSchema.omit({ name: true, description: true, soldierId: true, sourceOperationId: true });
+
+export const operationDocumentConfirmationSchema = z.object({
+  title: z.string().trim().min(1).max(160),
+  region: z.string().trim().min(1).max(160),
+  terrainType: terrainSchema,
+  altitudeBand: z.string().trim().min(1).max(100),
+  temperatureBand: z.string().trim().min(1).max(100),
+  durationMinutes: z.number().int().min(1).max(24 * 60 * 30),
+  timeOfDay: timeOfDaySchema,
+  weatherSummary: z.string().trim().min(1).max(2000),
+  personnelSummary: z.string().trim().min(1).max(2000),
+  environmentalFactors: z.string().trim().min(1).max(4000),
+  humanFactors: z.string().trim().min(1).max(4000),
+  reviewedText: z.string().trim().min(20).max(1_000_000),
 });
 
 export const simulationRequestSchema = z.object({

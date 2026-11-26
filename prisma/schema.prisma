@@ -13,6 +13,8 @@ enum TerrainType {
   MOUNTAIN
   STEEP_MOUNTAIN
   MIXED
+  DESERT
+  FOREST
 }
 
 enum TimeOfDay {
@@ -31,26 +33,103 @@ enum OperationStatus {
   DRAFT
   STRUCTURED
   REVIEWED
+  REJECTED
+}
+
+enum LessonReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LessonLifecycle {
+  OBSERVATION
+  IDENTIFIED
+  ACTION_ASSIGNED
+  VALIDATED
+}
+
+enum ExtractionMode {
+  AI
+  FALLBACK
+  MANUAL
+  LEGACY
+}
+
+enum OperationWorkflowStatus {
+  UPLOADED
+  PROCESSING
+  EXTRACTION_COMPLETED
+  NEEDS_REVIEW
+  APPROVED
+  REJECTED
+  FAILED
+}
+
+enum DataProvenance {
+  USER_ENTERED
+  IMPORTED
+  SYNTHETIC_DEMO
+  MODEL_GENERATED
+}
+
+enum OperationSourceStatus {
+  PREVIEW_READY
+  LINKED
+  FAILED
+}
+
+enum OperationSourceType {
+  PDF
+  DOCX
+  TXT
 }
 
 model Unit {
+  id        String               @id @default(cuid())
+  name      String
+  code      String               @unique
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  squads    Squad[]
+  groupRuns GroupSimulationRun[]
+  companies Company[]
+}
+
+model Company {
+  id        String    @id @default(cuid())
+  name      String
+  code      String    @unique
+  unitId    String
+  unit      Unit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  platoons  Platoon[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Platoon {
   id        String   @id @default(cuid())
   name      String
   code      String   @unique
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  squads    Squad[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  squads    Squad[]
 }
 
 model Squad {
-  id        String   @id @default(cuid())
+  id        String               @id @default(cuid())
   name      String
-  code      String   @unique
+  code      String               @unique
   unitId    String
-  unit      Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  unit      Unit                 @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
   roles     Role[]
+  groupRuns GroupSimulationRun[]
+  platoonId String?
+  platoon   Platoon?             @relation(fields: [platoonId], references: [id], onDelete: SetNull)
 }
 
 model Role {
@@ -65,26 +144,42 @@ model Role {
 }
 
 model Soldier {
-  id                String   @id @default(cuid())
-  soldierCode       String   @unique
-  roleId            String
-  role              Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  experienceYears   Int
-  baselineMobility  Int
-  baselineEndurance Int
-  baselineStrength  Int
-  baselineRecovery  Int
-  typicalLoadKg     Float
-  status            String   @default("ACTIVE")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                    String          @id @default(cuid())
+  soldierCode           String          @unique
+  displayName           String?
+  ageYears              Int?
+  heightCm              Float?
+  weightKg              Float?
+  roleId                String
+  role                  Role            @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  experienceYears       Int
+  baselineMobility      Int
+  baselineEndurance     Int
+  baselineStrength      Int
+  baselineRecovery      Int
+  typicalLoadKg         Float
+  fitnessAssessment     String?
+  assessmentDate        DateTime?
+  assessmentSource      String?
+  profileProvenance     DataProvenance?
+  profileSource         String?
+  profileAssessedAt     DateTime?
+  mobilityProvenance    DataProvenance?
+  enduranceProvenance   DataProvenance?
+  strengthProvenance    DataProvenance?
+  recoveryProvenance    DataProvenance?
+  typicalLoadProvenance DataProvenance?
+  status                String          @default("ACTIVE")
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
 
-  missionScenarios MissionScenario[]
-  missionRuns      MissionRun[]
+  missionScenarios       MissionScenario[]
+  missionRuns            MissionRun[]
+  groupSimulationMembers GroupSimulationMember[]
 }
 
 model MissionScenario {
-  id                 String     @id @default(cuid())
+  id                 String               @id @default(cuid())
   name               String
   terrainType        TerrainType
   altitudeMeters     Int
@@ -95,14 +190,16 @@ model MissionScenario {
   restMinutes        Int
   timeOfDay          TimeOfDay
   description        String?
+  isDemo             Boolean              @default(false)
   soldierId          String?
-  soldier            Soldier?   @relation(fields: [soldierId], references: [id], onDelete: SetNull)
+  soldier            Soldier?             @relation(fields: [soldierId], references: [id], onDelete: SetNull)
   sourceOperationId  String?
   sourceOperation    HistoricalOperation? @relation(fields: [sourceOperationId], references: [id], onDelete: SetNull)
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 
-  runs MissionRun[]
+  runs      MissionRun[]
+  groupRuns GroupSimulationRun[]
 }
 
 model MissionRun {
@@ -118,9 +215,55 @@ model MissionRun {
   finalMobility    Float?
   finalEndurance   Float?
   finalPerformance Float?
+  inputsSnapshot   Json?
+  baselineSnapshot Json?
+  baselineProvenanceSnapshot Json?
+  modelVersion     String?
   createdAt        DateTime         @default(now())
 
   snapshots PerformanceSnapshot[]
+}
+
+model GroupSimulationRun {
+  id                 String                  @id @default(cuid())
+  groupType          String
+  groupId            String
+  unitId             String?
+  unit               Unit?                   @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  squadId            String?
+  squad              Squad?                  @relation(fields: [squadId], references: [id], onDelete: SetNull)
+  groupLabelSnapshot String
+  scenarioId         String?
+  scenario           MissionScenario?        @relation(fields: [scenarioId], references: [id], onDelete: SetNull)
+  inputsSnapshot     Json
+  modelVersion       String
+  includedCount      Int
+  excludedCount      Int
+  incompleteCount    Int
+  aggregateSnapshot  Json
+  createdAt          DateTime                @default(now())
+  members            GroupSimulationMember[]
+
+  @@index([groupType, groupId, createdAt])
+}
+
+model GroupSimulationMember {
+  id               String             @id @default(cuid())
+  groupRunId       String
+  groupRun         GroupSimulationRun @relation(fields: [groupRunId], references: [id], onDelete: Cascade)
+  soldierId        String?
+  soldier          Soldier?           @relation(fields: [soldierId], references: [id], onDelete: SetNull)
+  soldierCode      String
+  roleNameSnapshot String?
+  included         Boolean
+  exclusionReason  String?
+  profileQuality   String
+  baselineSnapshot Json?
+  outputSnapshot   Json?
+  timelineSnapshot Json?
+  createdAt        DateTime           @default(now())
+
+  @@index([groupRunId, soldierCode])
 }
 
 model PerformanceSnapshot {
@@ -138,8 +281,11 @@ model PerformanceSnapshot {
 }
 
 model HistoricalOperation {
-  id                   String          @id @default(cuid())
+  id                   String                  @id @default(cuid())
   title                String
+  operationDate        DateTime?
+  missionCategory      String?
+  adversaryContext     String?                 @db.Text
   region               String
   terrainType          TerrainType
   altitudeBand         String
@@ -152,21 +298,55 @@ model HistoricalOperation {
   humanFactors         String
   rawReport            String?
   aiSummary            String?
-  status               OperationStatus @default(STRUCTURED)
-  isDemo               Boolean         @default(true)
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
+  status               OperationStatus         @default(STRUCTURED)
+  extractionMode       ExtractionMode          @default(LEGACY)
+  extractionConfidence Float?
+  extractionJson       Json?
+  reviewNotes          String?                 @db.Text
+  workflowStatus       OperationWorkflowStatus @default(UPLOADED)
+  reviewedAt           DateTime?
+  reviewedBy           String?
+  isDemo               Boolean                 @default(true)
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
 
-  lessons   OperationLesson[]
-  scenarios MissionScenario[]
+  lessons        OperationLesson[]
+  scenarios      MissionScenario[]
+  sourceDocument OperationSourceDocument?
+}
+
+model OperationSourceDocument {
+  id               String                @id @default(cuid())
+  originalFilename String
+  fileType         OperationSourceType?
+  fileSizeBytes    Int
+  storageRef       String?               @unique
+  extractedText    String?               @db.Text
+  uploadedAt       DateTime              @default(now())
+  status           OperationSourceStatus @default(PREVIEW_READY)
+  extractionError  String?
+  operationId      String?               @unique
+  operation        HistoricalOperation?  @relation(fields: [operationId], references: [id], onDelete: SetNull)
+
+  @@index([status, uploadedAt])
 }
 
 model OperationLesson {
-  id          String              @id @default(cuid())
-  operationId String
-  operation   HistoricalOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
-  title       String
-  description String
-  category    String
-  createdAt   DateTime            @default(now())
+  id                 String              @id @default(cuid())
+  operationId        String
+  operation          HistoricalOperation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  title              String
+  description        String
+  category           String
+  reviewStatus       LessonReviewStatus  @default(APPROVED)
+  lifecycle          LessonLifecycle     @default(OBSERVATION)
+  actionOwner        String?
+  actionDueDate      DateTime?
+  validationNotes    String?             @db.Text
+  validatedAt        DateTime?
+  extractionMode     ExtractionMode      @default(LEGACY)
+  confidence         Float?
+  sourcePassage      String?             @db.Text
+  editedDuringReview Boolean             @default(false)
+  createdAt          DateTime            @default(now())
 }

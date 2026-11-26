@@ -17,6 +17,9 @@ interface SoldierModelProps {
   isMoving: boolean;
   scale?: number;
   isSelected?: boolean;
+  soldierId?: string;
+  soldierCode?: string;
+  onSelect?: () => void;
 }
 
 export function SoldierModel({
@@ -25,6 +28,9 @@ export function SoldierModel({
   isMoving,
   scale = 1.6,
   isSelected = false,
+  soldierId,
+  soldierCode,
+  onSelect,
 }: SoldierModelProps) {
   const groupRef = useRef<THREE.Group>(null);
   const mixerRef = useRef<THREE.AnimationMixer | null>(null);
@@ -110,7 +116,7 @@ export function SoldierModel({
   });
 
   return (
-    <group ref={groupRef} position={position} scale={[scale, scale, scale]}>
+    <group ref={groupRef} position={position} scale={[scale, scale, scale]} userData={{ soldierId, soldierCode }} onClick={(event) => { event.stopPropagation(); onSelect?.(); }} onPointerOver={(event) => { event.stopPropagation(); document.body.style.cursor = "pointer"; }} onPointerOut={() => { document.body.style.cursor = "auto"; }}>
       {/* 180° rotation offset so the model's front aligns with movement heading */}
       <primitive object={clonedScene} rotation={[0, Math.PI, 0]} castShadow receiveShadow />
       

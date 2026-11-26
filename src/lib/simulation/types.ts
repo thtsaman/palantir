@@ -7,7 +7,9 @@ export type TerrainType =
   | "ROLLING"
   | "MOUNTAIN"
   | "STEEP_MOUNTAIN"
-  | "MIXED";
+  | "MIXED"
+  | "DESERT"
+  | "FOREST";
 
 export type TimeOfDay = "DAY" | "NIGHT";
 
@@ -52,6 +54,8 @@ export interface PerformancePoint {
 }
 
 export interface SimulationResult {
+  baselineUsed: SoldierBaseline;
+  modelVersion: string;
   factors: NormalizedFactors;
   snapshots: PerformancePoint[];
   final: PerformancePoint;

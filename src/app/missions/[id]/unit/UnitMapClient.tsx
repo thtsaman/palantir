@@ -1,20 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Panel, StatusBadge } from "@/components/ui/primitives";
 import { ReadinessGauge } from "@/components/ui/ReadinessGauge";
 import { ChevronDown, ChevronUp, User, Users, Shield, ArrowRight } from "lucide-react";
+import type { MissionInputs } from "@/lib/simulation";
+import { HistoricalContextPanel } from "@/components/historical/HistoricalContextPanel";
+import { GroupReadinessPanel } from "@/components/readiness/GroupReadinessPanel";
+import type { SoldierBaseline, PerformancePoint } from "@/lib/simulation";
 
 export type UnitMapNode = {
   id: string;
-  kind: "unit" | "squad" | "role" | "soldier";
+  kind: "unit" | "company" | "platoon" | "squad" | "role" | "soldier";
   label: string;
   sublabel: string;
   x: number;
   y: number;
-  index: number;
+  index: number | null;
   parentId?: string;
   soldierId?: string;
   source?: "SIMULATED" | "BASELINE";
@@ -31,39 +35,74 @@ type SoldierMetric = {
   endurance: number;
   strength: number;
   recovery: number;
+  fatigue: number | null;
   source: "SIMULATED" | "BASELINE";
 };
 
 const KIND_W: Record<UnitMapNode["kind"], number> = {
-  unit: 175,
-  squad: 155,
-  role: 145,
-  soldier: 145,
+  unit: 140,
+  company: 132,
+  platoon: 132,
+  squad: 132,
+  role: 132,
+  soldier: 132,
 };
 
 const KIND_H = 50;
+type GroupRunMember = { id: string; soldierCode: string; roleName: string | null; included: boolean; profileQuality: "COMPLETE" | "PROVENANCE_UNKNOWN" | "SYNTHETIC_DEMO" | "INCOMPLETE"; baseline: SoldierBaseline | null; final: PerformancePoint | null; timeline: Array<{ timeMinutes: number; performance: number }> };
+type GroupType = "UNIT" | "COMPANY" | "PLATOON" | "SQUAD";
+type GroupRun = { id: string; groupLabel: string; modelVersion: string; inputs: MissionInputs; includedCount: number; excludedCount: number; incompleteCount: number; syntheticCount: number; aggregate: Record<string, { mean: number | null; median: number | null; minimum: number | null; maximum: number | null; distribution: Array<{ soldierCode: string; value: number }> }>; members: GroupRunMember[] };
 
 export function UnitMapClient({
   nodes,
   soldierMetrics,
   unitCapability,
+  mapSourceCounts,
   canvasHeight,
-  scenarioName,
   scenarioId,
   highlightSoldierId,
+  missionInputs,
+  groupOptions,
 }: {
   nodes: UnitMapNode[];
   soldierMetrics: Record<string, SoldierMetric>;
-  unitCapability: number;
+  unitCapability: number | null;
+  mapSourceCounts: { simulated: number; baseline: number };
   canvasHeight: number;
-  scenarioName: string;
   scenarioId?: string;
   highlightSoldierId: string | null;
+  missionInputs: MissionInputs;
+  groupOptions: Array<{ id: string; groupType: GroupType; label: string; memberCount: number }>;
 }) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(
     highlightSoldierId ? `soldier-${highlightSoldierId}` : null
   );
   const [whyExpanded, setWhyExpanded] = useState(false);
+  const [groupSelection, setGroupSelection] = useState(groupOptions.find((group) => group.groupType === "SQUAD")?.id ?? groupOptions[0]?.id ?? "");
+  const [groupResult, setGroupResult] = useState<GroupRun | null>(null);
+  const [groupError, setGroupError] = useState<string | null>(null);
+  const [groupBusy, setGroupBusy] = useState(false);
+  const selectedGroup = groupOptions.find((group) => group.id === groupSelection);
+
+  useEffect(() => {
+    if (!selectedGroup) return;
+    fetch(`/api/group-simulations?groupType=${selectedGroup.groupType}&groupId=${selectedGroup.id}&scenarioId=${scenarioId ?? ""}`)
+      .then(async (response) => response.ok ? response.json() as Promise<GroupRun[]> : [])
+      .then((runs) => setGroupResult(runs[0] ?? null))
+      .catch(() => setGroupResult(null));
+  }, [selectedGroup, scenarioId]);
+
+  async function runGroupSimulation() {
+    if (!selectedGroup) return;
+    setGroupBusy(true); setGroupError(null);
+    try {
+      const response = await fetch("/api/group-simulations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ groupType: selectedGroup.groupType, groupId: selectedGroup.id, scenarioId, inputs: missionInputs }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Group simulation failed.");
+      setGroupResult(data);
+    } catch (error) { setGroupError(error instanceof Error ? error.message : "Group simulation failed."); }
+    finally { setGroupBusy(false); }
+  }
 
   const byId = useMemo(() => {
     return new Map(nodes.map((n) => [n.id, n]));
@@ -136,10 +175,26 @@ export function UnitMapClient({
   const squadCount = useMemo(() => nodes.filter((n) => n.kind === "squad").length, [nodes]);
   const unitCount = useMemo(() => nodes.filter((n) => n.kind === "unit").length, [nodes]);
 
-  const canvasWidth = 780;
+  const canvasWidth = 980;
 
   return (
     <div className="grid gap-5 xl:grid-cols-[1.5fr_0.8fr]">
+      <Panel className="xl:col-span-2 !p-5 space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <label className="block min-w-[260px] flex-1 space-y-1.5"><span className="label-xs">Persisted group roster</span><select value={groupSelection} onChange={(event) => setGroupSelection(event.target.value)} className="h-9 w-full rounded-[6px] border border-[var(--border-strong)] bg-[var(--ink)] px-2.5 text-[13px] text-[var(--off-white)]">{groupOptions.map((group) => <option key={`${group.groupType}-${group.id}`} value={group.id}>{group.label} · {group.groupType.toLowerCase()} · {group.memberCount} soldiers</option>)}</select></label>
+          <Button onClick={runGroupSimulation} disabled={groupBusy || !selectedGroup}>{groupBusy ? "Simulating roster…" : "Run Group Simulation"}</Button>
+        </div>
+        <p className="text-[11px] text-[var(--gray-500)]">Uses this mission configuration for each active soldier in the selected saved group. Individual baselines are used without generic fallback. Inactive and incomplete members are reported separately.</p>
+        {groupError ? <p className="text-[12px] text-rose-300">{groupError}</p> : null}
+        {groupResult ? <div className="space-y-4 border-t border-[var(--border)] pt-4">
+          <div className="flex flex-wrap items-center gap-4 text-[12px]"><StatusBadge tone="cyan">SAVED GROUP RUN</StatusBadge><span>{groupResult.groupLabel}</span><span>{groupResult.includedCount} included</span><span>{groupResult.excludedCount} excluded</span><span>{groupResult.incompleteCount} incomplete/provenance unknown</span><span>{groupResult.syntheticCount} synthetic demo</span></div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{Object.entries(groupResult.aggregate).map(([key, stats]) => <div key={key} className="rounded border border-[var(--border)] bg-[#090f1b] p-3"><div className="label-xs">{key}</div><div className="mono text-[12px] text-[var(--cyan)]">Mean {stats.mean ?? "—"} · Median {stats.median ?? "—"}</div><div className="mono text-[10px] text-[var(--gray-400)]">Range {stats.minimum ?? "—"}–{stats.maximum ?? "—"}</div></div>)}</div>
+          <div className="max-h-64 overflow-auto"><table className="w-full text-left text-[11px]"><thead className="text-[var(--gray-500)]"><tr><th className="py-1">Soldier</th><th>Status</th><th>Performance</th><th>Fatigue</th><th>Profile data</th><th>Timeline</th></tr></thead><tbody>{groupResult.members.map((member) => <tr key={member.id} className="border-t border-[var(--border)]"><td className="py-1.5"><Link className="text-[var(--cyan)] hover:underline" href={`/soldiers/${member.id}`}>{member.soldierCode}</Link></td><td>{member.included ? "Included" : "Excluded"}</td><td>{member.final?.performance ?? "—"}</td><td>{member.final?.fatigue ?? "—"}</td><td>{member.profileQuality.replaceAll("_", " ")}</td><td>{member.timeline.length} points</td></tr>)}</tbody></table></div>
+          <p className="text-[10px] text-[var(--gray-500)]">Distribution uses each included soldier’s final prototype index. Summary statistics do not represent readiness thresholds. Per-soldier time series and baseline snapshots are saved with this run.</p>
+          <GroupReadinessPanel groupLabel={groupResult.groupLabel} modelVersion={groupResult.modelVersion} members={groupResult.members} inputs={groupResult.inputs} />
+        </div> : null}
+        <div className="border-t border-[var(--border)] pt-4"><HistoricalContextPanel inputs={missionInputs} label="Historical context · group-level mission conditions" compact /><p className="mt-2 text-[10px] text-[var(--gray-500)]">These records describe historical conditions and lessons. They do not predict performance for this roster or any individual member.</p></div>
+      </Panel>
       {/* LEFT: MAIN UNIT FLOW VISUALIZATION */}
       <div className="flex flex-col gap-3">
         {/* Topology Stage Column Titles & Metadata */}
@@ -171,11 +226,13 @@ export function UnitMapClient({
           </div>
 
           {/* Column Stage Headers */}
-          <div className="grid grid-cols-4 gap-2 pt-3 text-center mono text-[10px] uppercase font-semibold tracking-widest text-[var(--gray-500)]">
-            <div className="text-left pl-2 text-[var(--cyan)]">1. UNIT</div>
-            <div className="text-left pl-4 text-[var(--gray-300)]">2. SQUADS</div>
-            <div className="text-left pl-6 text-[var(--gray-300)]">3. ROLES</div>
-            <div className="text-left pl-8 text-[var(--gray-300)]">4. SOLDIERS</div>
+          <div className="grid grid-cols-6 gap-1 pt-3 text-center mono text-[9px] uppercase font-semibold tracking-widest text-[var(--gray-500)]">
+            <div className="text-left text-[var(--cyan)]">1. UNIT</div>
+            <div className="text-left">2. COMPANY</div>
+            <div className="text-left">3. PLATOON</div>
+            <div className="text-left">4. SQUAD</div>
+            <div className="text-left">5. ROLE</div>
+            <div className="text-left">6. SOLDIER</div>
           </div>
         </div>
 
@@ -186,7 +243,7 @@ export function UnitMapClient({
               viewBox={`0 0 ${canvasWidth} ${canvasHeight}`}
               width="100%"
               height={Math.min(680, canvasHeight)}
-              className="min-w-[740px] bg-[radial-gradient(ellipse_at_20%_10%,rgba(85,216,245,0.04),transparent_60%)] select-none"
+              className="min-w-[920px] bg-[radial-gradient(ellipse_at_20%_10%,rgba(85,216,245,0.04),transparent_60%)] select-none"
               role="img"
               aria-label="Unit capability map"
             >
@@ -306,7 +363,7 @@ export function UnitMapClient({
                       fontFamily="var(--font-mono)"
                       style={{ fontVariantNumeric: "tabular-nums" }}
                     >
-                      {Number.isFinite(node.index) ? Math.round(node.index) : "—"}
+                      {node.index != null && Number.isFinite(node.index) ? Math.round(node.index) : "—"}
                     </text>
 
                     {/* Micro Performance Bar */}
@@ -321,7 +378,7 @@ export function UnitMapClient({
                     <rect
                       x={w - 48}
                       y={28}
-                      width={Math.max(0, Math.min(38, (node.index / 100) * 38))}
+                      width={Math.max(0, Math.min(38, ((node.index ?? 0) / 100) * 38))}
                       height={4}
                       rx={2}
                       fill={isSelected ? "#55D8F5" : "rgba(85,216,245,0.7)"}
@@ -358,39 +415,26 @@ export function UnitMapClient({
         <Panel className="!p-5 space-y-4 relative">
           <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
             <div>
-              <div className="label-xs mb-0.5">UNIT CAPABILITY</div>
+                <div className="label-xs mb-0.5">SCENARIO ROSTER MEAN</div>
               <div className="text-[14px] font-semibold text-[var(--white)]">
-                Aggregated Simulated Performance
+                Saved run or baseline indices
               </div>
             </div>
             <StatusBadge tone="cyan">TEAM</StatusBadge>
           </div>
 
           {/* Central Semi Gauge Anchor */}
-          <div className="py-2 flex justify-center">
+          {unitCapability != null ? <div className="py-2 flex justify-center">
             <ReadinessGauge
               type="semi"
               value={unitCapability}
               size={200}
-              label="SIMULATED INDEX"
+              label="ROSTER MEAN"
+              sublabel="relative index"
             />
-          </div>
+          </div> : <p className="py-8 text-center text-[12px] text-[var(--gray-500)]">No members are assigned in this organization.</p>}
 
-          {/* 3 Compact Contribution Rows */}
-          <div className="space-y-2.5 border-t border-[var(--border)] pt-4">
-            <ContributionRow
-              label="HUMAN PERFORMANCE"
-              value={Math.round(unitCapability)}
-            />
-            <ContributionRow
-              label="MOBILITY"
-              value={Math.round(unitCapability * 0.96)}
-            />
-            <ContributionRow
-              label="ENDURANCE"
-              value={Math.round(unitCapability * 0.92)}
-            />
-          </div>
+          <div className="grid grid-cols-2 gap-2 border-t border-[var(--border)] pt-3 text-[11px] text-[var(--gray-300)]"><div>Scenario run values <span className="mono text-[var(--cyan)]">{mapSourceCounts.simulated}</span></div><div>Baseline fallbacks <span className="mono text-[var(--gray-300)]">{mapSourceCounts.baseline}</span></div></div>
 
           {/* Expandable "WHY THIS SCORE?" Section */}
           <div className="border-t border-[var(--border)] pt-3">
@@ -409,20 +453,9 @@ export function UnitMapClient({
             {whyExpanded && (
               <div className="mt-3 space-y-2.5 rounded border border-[var(--border)] bg-[#090f1b] p-3 text-[11px] text-[var(--gray-300)]">
                 <div className="mono text-[10px] uppercase font-semibold text-[var(--cyan)] tracking-wider">
-                  CAPABILITY COMPOSITION
+                  DATA METHOD
                 </div>
-                <div className="flex justify-between">
-                  <span>Performance Contribution</span>
-                  <span className="mono tabular text-[var(--white)]">38%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Mobility Contribution</span>
-                  <span className="mono tabular text-[var(--white)]">31%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Endurance Contribution</span>
-                  <span className="mono tabular text-[var(--white)]">31%</span>
-                </div>
+                <p>Each member uses the latest saved run for this mission when present; otherwise the displayed map index is the mean of four stored baseline indices. This is a descriptive roster summary, not a readiness threshold.</p>
                 <div className="border-t border-[var(--border)]/60 pt-2 flex justify-between text-[10px] text-[var(--gray-500)]">
                   <span>MODEL VERSION</span>
                   <span className="mono">PROTOTYPE AGGREGATION MODEL</span>
@@ -475,10 +508,7 @@ export function UnitMapClient({
                   label="ENDURANCE"
                   value={selectedSoldierNode.endurance}
                 />
-                <MetricBox
-                  label="FATIGUE"
-                  value={Math.round(100 - selectedSoldierNode.index * 0.7)}
-                />
+                <MetricBox label="FATIGUE" value={selectedSoldierNode.fatigue == null ? "—" : Math.round(selectedSoldierNode.fatigue)} />
               </div>
 
               {/* Actions */}
@@ -519,30 +549,13 @@ export function UnitMapClient({
   );
 }
 
-function ContributionRow({ label, value }: { label: string; value: number }) {
-  return (
-    <div>
-      <div className="flex justify-between text-[11px] mb-1">
-        <span className="text-[var(--gray-300)]">{label}</span>
-        <span className="mono tabular font-semibold text-[var(--white)]">{value}</span>
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-[var(--gray-800)] overflow-hidden">
-        <div
-          className="h-full bg-[var(--cyan)] transition-all duration-500"
-          style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
 function MetricBox({
   label,
   value,
   primary = false,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   primary?: boolean;
 }) {
   return (

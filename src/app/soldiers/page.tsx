@@ -40,7 +40,7 @@ export default async function SoldiersPage() {
   }));
 
   return (
-    <AppShell title="Soldiers · Soldier Library" meta={<StatusBadge tone="muted">DEMO DATA</StatusBadge>}>
+    <AppShell title="Soldiers · Soldier Library" meta={<StatusBadge tone="muted">SYNTHETIC DATA MAY BE PRESENT</StatusBadge>}>
       <PageHeader
         eyebrow="Soldier Profiles"
         title="Soldier Library"
@@ -67,13 +67,24 @@ export default async function SoldiersPage() {
             </div>
             <StatusBadge tone="muted">SIMULATED RELATIVE INDICES</StatusBadge>
           </div>
-          <div className="overflow-x-auto">
+          <div className="grid gap-2 p-3 md:hidden">
+            {soldiers.map((s) => <Link key={s.id} href={`/soldiers/${s.id}`} className="rounded-lg border border-[var(--border)] bg-[var(--ink)] p-3 transition-colors hover:border-[var(--cyan)]/30">
+              <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="truncate text-[14px] font-medium text-[var(--white)]">{s.displayName ?? s.soldierCode}</div><div className="mt-0.5 font-mono text-[10px] text-[var(--gray-500)]">{s.soldierCode} · {s.role.name}</div></div><StatusBadge tone={s.status === "ACTIVE" ? "cyan" : "neutral"}>{s.status}</StatusBadge></div>
+              <div className="mt-2 text-[11px] text-[var(--gray-500)]">{s.role.squad.name} · {s.role.squad.unit.name} · {s.experienceYears} years experience</div>
+              <div className="mt-3 grid grid-cols-4 border-t border-[var(--border)] pt-2">{[["MOB", s.baselineMobility], ["END", s.baselineEndurance], ["STR", s.baselineStrength], ["REC", s.baselineRecovery]].map(([label, value]) => <div key={String(label)}><div className="label-xs text-[9px]">{label}</div><div className="mt-0.5 font-mono text-[14px] tabular text-[var(--off-white)]">{value}</div></div>)}</div>
+              <div className="mt-2 text-[10px] text-[var(--gray-500)]">{s.fitnessAssessment ? "Assessment recorded" : "No fitness assessment recorded"} · {s.profileProvenance?.replaceAll("_", " ") ?? "Profile source unknown"}</div>
+            </Link>)}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[860px] text-left text-[13px]">
               <thead>
                 <tr className="border-b border-[var(--border)] text-[10px] uppercase tracking-wide text-[var(--gray-500)]">
                   <th className="px-4 py-2.5 font-medium">ID</th>
                   <th className="px-3 py-2.5 font-medium">Role</th>
                   <th className="px-3 py-2.5 font-medium">Experience</th>
+                  <th className="px-3 py-2.5 font-medium">Age</th>
+                  <th className="px-3 py-2.5 font-medium">Height</th>
+                  <th className="px-3 py-2.5 font-medium">Weight</th>
                   <th className="px-3 py-2.5 font-medium">Mobility</th>
                   <th className="px-3 py-2.5 font-medium">Endurance</th>
                   <th className="px-3 py-2.5 font-medium">Recovery</th>
@@ -110,6 +121,9 @@ export default async function SoldiersPage() {
                         <span className="text-[var(--gray-500)]"> yr</span>
                       </Link>
                     </td>
+                    <td className="px-3 py-2 mono tabular">{s.ageYears ?? "—"}</td>
+                    <td className="px-3 py-2 mono tabular">{s.heightCm == null ? "—" : `${s.heightCm} cm`}</td>
+                    <td className="px-3 py-2 mono tabular">{s.weightKg == null ? "—" : `${s.weightKg} kg`}</td>
                     <td className="px-3 py-2 mono tabular text-[var(--cyan)]">
                       <Link href={`/soldiers/${s.id}`}>{s.baselineMobility}</Link>
                     </td>

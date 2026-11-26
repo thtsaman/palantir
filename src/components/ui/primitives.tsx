@@ -12,14 +12,14 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-7 flex flex-wrap items-end justify-between gap-4 border-b border-[var(--border)] pb-5">
       <div className="min-w-0">
-        {eyebrow ? <div className="label-xs mb-2">{eyebrow}</div> : null}
-        <h1 className="text-[30px] font-semibold tracking-tight text-[var(--white)] leading-none">
+        {eyebrow ? <div className="label-xs mb-2.5 text-[var(--cyan)]">{eyebrow}</div> : null}
+        <h1 className="text-[28px] font-semibold tracking-[-0.035em] text-[var(--white)] leading-[1.08] sm:text-[34px]">
           {title}
         </h1>
         {description ? (
-          <p className="mt-2 max-w-2xl text-[13px] text-[var(--gray-300)]">
+          <p className="mt-2.5 max-w-2xl text-[13px] leading-relaxed text-[var(--gray-300)]">
             {description}
           </p>
         ) : null}
@@ -41,9 +41,9 @@ export function SectionHeader({
   return (
     <div className="mb-3 flex items-end justify-between gap-3">
       <div>
-        <h2 className="text-[15px] font-semibold text-[var(--white)]">{title}</h2>
+        <h2 className="text-[15px] font-semibold tracking-tight text-[var(--white)]">{title}</h2>
         {subtitle ? (
-          <p className="mt-0.5 text-[12px] text-[var(--gray-500)]">{subtitle}</p>
+          <p className="mt-1 text-[12px] leading-relaxed text-[var(--gray-500)]">{subtitle}</p>
         ) : null}
       </div>
       {action}
@@ -89,7 +89,7 @@ export function StatValue({
       <div className="label-xs mb-1">{label}</div>
       <div
         className={cn(
-          "mono tabular font-medium text-[var(--cyan)] leading-none",
+          "mono tabular font-medium text-[var(--white)] leading-none",
           sizes[size]
         )}
       >
@@ -112,11 +112,11 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-[4px] border px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase",
+        "inline-flex items-center rounded-full border px-2.5 py-1 text-[9px] font-semibold tracking-[0.1em] uppercase",
         tone === "cyan" &&
-          "border-[var(--cyan)]/30 bg-[var(--cyan-dim)] text-[var(--cyan)]",
+          "border-[var(--cyan)]/25 bg-[var(--cyan-dim)] text-[var(--cyan)]",
         tone === "neutral" &&
-          "border-[var(--border-strong)] bg-[var(--gray-800)] text-[var(--gray-100)]",
+          "border-[var(--border)] bg-white/[0.035] text-[var(--gray-100)]",
         tone === "muted" &&
           "border-[var(--border)] text-[var(--gray-500)]"
       )}
@@ -136,10 +136,10 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="panel flex flex-col items-start gap-3 p-8">
-      <div className="label-xs">Empty</div>
-      <h3 className="text-[18px] font-semibold text-[var(--white)]">{title}</h3>
-      <p className="max-w-md text-[13px] text-[var(--gray-300)]">{description}</p>
+    <div className="panel flex min-h-44 flex-col items-start justify-center gap-2.5 p-6 sm:p-8">
+      <div className="label-xs text-[var(--gray-300)]">Nothing here yet</div>
+      <h3 className="text-[17px] font-semibold tracking-tight text-[var(--white)]">{title}</h3>
+      <p className="max-w-md text-[13px] leading-relaxed text-[var(--gray-300)]">{description}</p>
       {action}
     </div>
   );

@@ -18,6 +18,8 @@ const VALID_TERRAIN: TerrainType[] = [
   "MOUNTAIN",
   "STEEP_MOUNTAIN",
   "MIXED",
+  "DESERT",
+  "FOREST",
 ];
 
 function parseDurationToMinutes(duration: string): number {
@@ -27,7 +29,7 @@ function parseDurationToMinutes(duration: string): number {
   if (mins?.[1]) return Math.max(1, Number(mins[1]));
   const bare = duration.match(/(\d+)/);
   if (bare?.[1]) return Math.max(1, Number(bare[1]) * 60);
-  return 480;
+  return 1;
 }
 
 function toTerrainType(value: string): TerrainType {
@@ -48,7 +50,8 @@ function asText(value: string | string[]): string {
 
 async function persistAnalysis(
   rawText: string,
-  result: OperationAnalysisResult
+  result: OperationAnalysisResult,
+  mode: "ai" | "demo"
 ) {
   const lessons = result.lessons.map((lesson) => {
     if (typeof lesson === "string") {
@@ -62,6 +65,8 @@ async function persistAnalysis(
       title: lesson.title,
       description: lesson.description ?? "",
       category: lesson.category ?? "GENERAL",
+        reviewStatus: "PENDING" as const,
+        extractionMode: mode === "ai" ? "AI" as const : "FALLBACK" as const,
     };
   });
 
@@ -81,7 +86,12 @@ async function persistAnalysis(
       rawReport: rawText,
       aiSummary: result.keyObservations.join("\n"),
       status: "STRUCTURED",
-      isDemo: true,
+      workflowStatus: "NEEDS_REVIEW",
+      extractionMode: mode === "ai" ? "AI" : "FALLBACK",
+      isDemo: false,
+      reviewNotes: mode === "ai"
+        ? "Hugging Face model-extracted draft. Verify every field against the pasted source before approval; no lesson is approved automatically. Missing terrain or time may use a technical placeholder; a missing duration is stored as 1 minute until corrected during review."
+        : "Deterministic fallback draft, not AI-generated. Verify every field against the pasted source before approval. Missing terrain or time may use a technical placeholder; a missing duration is stored as 1 minute until corrected during review.",
       lessons: { create: lessons },
     },
     include: { lessons: true },
@@ -107,7 +117,7 @@ export async function POST(request: Request) {
 
     let saved = null;
     if (save) {
-      saved = await persistAnalysis(rawText, result);
+      saved = await persistAnalysis(rawText, result, mode);
     }
 
     return NextResponse.json({

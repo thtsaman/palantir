@@ -2,12 +2,16 @@
 
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
+import type { TerrainType } from '@/lib/simulation/types';
+import { terrainProfile } from './profiles';
 
 interface TerrainMeshProps {
   getTerrainHeight: (x: number, z: number) => number;
+  terrainType: TerrainType;
 }
 
-export function TerrainMesh({ getTerrainHeight }: TerrainMeshProps) {
+export function TerrainMesh({ getTerrainHeight, terrainType }: TerrainMeshProps) {
+  const profile = terrainProfile(terrainType);
   const { geometry } = useMemo(() => {
     const size = 300;
     const segments = 100;
@@ -25,16 +29,44 @@ export function TerrainMesh({ getTerrainHeight }: TerrainMeshProps) {
     return { geometry: geom };
   }, [getTerrainHeight]);
 
+  const props = useMemo(() => {
+    const items: Array<{ x: number; z: number; scale: number }> = [];
+    if (profile.vegetation !== 'none') {
+      for (let i = 0; i < 76; i++) {
+        const x = ((i * 47) % 270) - 135;
+        const z = ((i * 83) % 270) - 135;
+        if (Math.abs(x) < 13 || Math.abs(z - x * 0.35) < 9) continue;
+        items.push({ x, z, scale: 0.7 + (i % 5) * 0.11 });
+      }
+    }
+    return items;
+  }, [profile.vegetation]);
+
   return (
     <group>
       <mesh geometry={geometry} receiveShadow>
         <meshStandardMaterial
-          color="#0d192b"
-          roughness={0.8}
-          metalness={0.2}
+          color={profile.color}
+          roughness={profile.roughness}
+          metalness={0.02}
           wireframe={false}
         />
       </mesh>
+
+      {profile.vegetation === 'forest' && props.map((item, i) => {
+        const y = getTerrainHeight(item.x, item.z);
+        return <group key={i} position={[item.x, y, item.z]} scale={item.scale}>
+          <mesh position={[0, 2, 0]} castShadow><cylinderGeometry args={[0.22, 0.38, 4, 6]} /><meshStandardMaterial color="#594834" /></mesh>
+          <mesh position={[0, 5, 0]} castShadow><coneGeometry args={[2.1, 5.5, 7]} /><meshStandardMaterial color={i % 2 ? "#315d43" : profile.accent} /></mesh>
+        </group>;
+      })}
+      {profile.vegetation === 'sparse' && props.map((item, i) => {
+        if (i % 3 !== 0) return null;
+        const y = getTerrainHeight(item.x, item.z);
+        return <mesh key={i} position={[item.x, y + 0.5, item.z]} scale={item.scale} castShadow>
+          <dodecahedronGeometry args={[0.75, 0]} /><meshStandardMaterial color={profile.accent} roughness={1} />
+        </mesh>;
+      })}
       
       {/* Tactical Wireframe Overlay */}
       <mesh geometry={geometry} position={[0, 0.05, 0]}>

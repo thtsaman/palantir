@@ -13,6 +13,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
+    "demo:seed": "tsx prisma/demo-seed.ts",
     "db:reset": "prisma migrate reset --force",
     "postinstall": "prisma generate"
   },
@@ -25,13 +26,15 @@
     "@react-three/fiber": "^9.8.1",
     "framer-motion": "^13.4.6",
     "lucide-react": "^1.49.0",
-    "next": "16.3.8",
+    "mammoth": "^1.13.0",
+    "next": "^16.4.6",
     "papaparse": "^5.7.0",
+    "pdf-parse": "^2.4.5",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "recharts": "^3.10.1",
     "three": "^0.186.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -42,7 +45,7 @@
     "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^9",
-    "eslint-config-next": "16.3.8",
+    "eslint-config-next": "^16.4.6",
     "prisma": "^5.22.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",

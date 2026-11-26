@@ -10,16 +10,23 @@ import { prisma } from "@/lib/prisma";
 import { terrainLabel } from "@/lib/simulation/factors";
 import { formatHoursLabel } from "@/lib/utils";
 import { ReportIngestClient } from "./ReportIngestClient";
+import { DocumentSourceQueue } from "./DocumentSourceQueue";
 
 export const dynamic = "force-dynamic";
 
 export default async function OperationsPage() {
-  const operations = await prisma.historicalOperation.findMany({
+  const [operations, pendingSources] = await Promise.all([prisma.historicalOperation.findMany({
     orderBy: { createdAt: "desc" },
     include: {
       _count: { select: { lessons: true } },
+      sourceDocument: { select: { originalFilename: true, fileType: true, fileSizeBytes: true, status: true } },
     },
-  });
+  }), prisma.operationSourceDocument.findMany({
+    where: { operationId: null },
+    orderBy: { uploadedAt: "desc" },
+    take: 10,
+    select: { id: true, originalFilename: true, fileType: true, fileSizeBytes: true, uploadedAt: true, status: true, extractionError: true },
+  })]);
 
   return (
     <AppShell
@@ -65,6 +72,8 @@ export default async function OperationsPage() {
                     )}
                     <StatusBadge tone="muted">{op.status}</StatusBadge>
                     <StatusBadge tone="muted">{op.timeOfDay}</StatusBadge>
+                    {op.isDemo ? <StatusBadge tone="muted">SYNTHETIC TRAINING</StatusBadge> : null}
+                    {op.missionCategory ? <StatusBadge tone="muted">{op.missionCategory}</StatusBadge> : null}
                     <StatusBadge>
                       {op._count.lessons}{" "}
                       {op._count.lessons === 1 ? "LESSON" : "LESSONS"}
@@ -74,8 +83,10 @@ export default async function OperationsPage() {
                     {op.title}
                   </h2>
                   <p className="mt-1 text-[12px] text-[var(--gray-500)]">
-                    {op.region}
+                    {op.region}{op.operationDate ? ` · event ${op.operationDate.toLocaleDateString()}` : " · event date not documented"}
                   </p>
+                  {op.sourceDocument ? <p className="mt-1 text-[11px] text-[var(--gray-500)]">Source: {op.sourceDocument.originalFilename} · {op.sourceDocument.fileType} · {(op.sourceDocument.fileSizeBytes / 1024).toFixed(0)} KB · {op.sourceDocument.status}</p> : null}
+                  {op.adversaryContext ? <p className="mt-2 text-[11px] text-[var(--gray-500)]">Descriptive context only · excluded from simulation: {op.adversaryContext}</p> : null}
                   <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-[var(--gray-300)]">
                     <span>{terrainLabel(op.terrainType)}</span>
                     <span className="mono tabular">{op.altitudeBand}</span>
@@ -104,6 +115,7 @@ export default async function OperationsPage() {
       )}
 
       <div className="mt-8">
+        <DocumentSourceQueue initialItems={pendingSources.map((source) => ({ ...source, uploadedAt: source.uploadedAt.toISOString() }))} />
         <ReportIngestClient />
       </div>
     </AppShell>

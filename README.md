@@ -1,6 +1,6 @@
 # Human Performance Simulation & Mission Readiness Platform
 
-Software-first human-performance and mission-simulation platform for training, mission-readiness analysis, and operational learning.
+Defence-focused human-performance simulation and mission-readiness analysis for military training, synthetic combat-operation scenarios, and historical operational learning.
 
 > **We don't just simulate the mission. We simulate the humans who have to execute it.**
 
@@ -11,6 +11,8 @@ Prototype relative indices only — **not** medical, clinical, or scientifically
 Mission planning often models the environment. Human performance changes with load, altitude, temperature, terrain, duration, and recovery. Those changes also affect team-level capability and what past operations can teach about future scenarios.
 
 ## Solution
+
+The platform examines the human dimension of defence scenarios: personnel performance, fatigue, recovery, endurance, mobility, environmental stress, group capability, readiness indicators, and lessons documented in historical records. It does not predict combat outcomes or provide tactical recommendations.
 
 Three connected layers:
 
@@ -93,7 +95,7 @@ docker compose up -d
 npm install
 npm run prisma:generate
 npx prisma migrate dev
-npm run prisma:seed
+npm run demo:seed
 npm run dev
 ```
 
@@ -115,14 +117,20 @@ Copy `.env.example` → `.env` and adjust if needed.
 | `npm run prisma:generate` | Generate client |
 | `npm run prisma:migrate` | Dev migrate |
 | `npm run prisma:seed` | Seed demo data |
-| `npm run db:reset` | Reset DB |
+| `npm run demo:seed` | Safely create or update only the stable synthetic demo records; preserves unrelated database rows |
+| `npm run db:reset` | Destructively reset the database; do not use against a shared or valuable database |
 
 ## Demo journey
 
-1. Open **Mission Readiness** dashboard (High Altitude Patrol)  
-2. Open **Simulator** — watch metrics and terrain progress  
-3. **What-If** — load 18→14 kg, rest 15→30 min, compare  
-4. **Operations** — open a demo operation → similar scenarios → **Simulate similar scenario**  
+1. Run `npm run demo:seed`; it is idempotent and labels every added profile and report as synthetic.
+2. Open **Organization** to inspect the synthetic Himalayan Training Group → Alpha Company → Alpha Platoon → Bravo Squad and four role-linked fictional profiles.
+3. Open **Missions** and choose the synthetic Neelkanth ridge traverse, Marudhara desert circuit, Vanrekha forest egress, or Samata plains relay.
+4. Open **Simulator** to view the selected scenario's stylized terrain and replay. Terrain is schematic, not geographic data.
+5. Open **What-If**, select terrain for the baseline and alternatives, inspect their terrain previews, then compare the model outputs.
+6. Open **Operations** and **Learning** to review pre-approved fictional training reports and the repeated water-point observation pattern.
+7. For the document flow, upload `demo-data/synthetic-training-report.txt`, inspect the extracted text, then confirm and review it.
+
+`npm run prisma:seed` delegates to the same non-destructive demo seeder. The demo profiles include one deliberately incomplete optional assessment to demonstrate missing-data handling. All people, operations, conditions, assessments, and outputs are invented. Do not use this dataset as operational or medical guidance.
 
 ## Limitations
 
@@ -130,6 +138,8 @@ Copy `.env.example` → `.env` and adjust if needed.
 - Synthetic / fictional demo data  
 - No authentication, CV, GIS providers, microservices, or K8s  
 - AI optional; embeddings similarity only if you extend the provider  
+- Terrain surfaces and routes are procedural visualizations; no GIS, elevation, or validated biome data is used  
+- Authentication and authorization are required before deployment with real personnel or sensitive records  
 
 ## Future extensions (docs only)
 

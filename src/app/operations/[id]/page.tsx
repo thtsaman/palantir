@@ -14,10 +14,8 @@ import {
 } from "@/lib/simulation";
 import { terrainLabel } from "@/lib/simulation/factors";
 import { formatHoursLabel, formatMinutes } from "@/lib/utils";
-import {
-  SimilarScenariosPanel,
-  SimulateSimilarButton,
-} from "./OperationActions";
+import { ReviewPanel } from "../ReviewPanel";
+import { LessonLifecycleControl } from "@/components/historical/LessonLifecycleControl";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +28,7 @@ export default async function OperationDetailPage({
 
   const operation = await prisma.historicalOperation.findUnique({
     where: { id },
-    include: { lessons: { orderBy: { createdAt: "asc" } } },
+    include: { lessons: { orderBy: { createdAt: "asc" } }, sourceDocument: true },
   });
 
   if (!operation) notFound();
@@ -81,8 +79,11 @@ export default async function OperationDetailPage({
           <StatusBadge tone="muted">AI-ASSISTED</StatusBadge>
         ) : null}
         <StatusBadge tone="cyan">{operation.status}</StatusBadge>
+        <StatusBadge tone="muted">{operation.workflowStatus.replaceAll("_", " ")}</StatusBadge>
         <StatusBadge tone="muted">{operation.timeOfDay}</StatusBadge>
       </div>
+
+      {operation.workflowStatus !== "APPROVED" && operation.workflowStatus !== "REJECTED" ? <div className="mb-4"><ReviewPanel operationId={operation.id} sourceId={operation.sourceDocument?.id ?? null} sourceFilename={operation.sourceDocument?.originalFilename ?? null} initialFields={{ title: operation.title, operationDate: operation.operationDate?.toISOString().slice(0, 10) ?? "", missionCategory: operation.missionCategory ?? "", adversaryContext: operation.adversaryContext ?? "", region: operation.region, terrainType: operation.terrainType, altitudeBand: operation.altitudeBand, temperatureBand: operation.temperatureBand, durationMinutes: operation.durationMinutes, timeOfDay: operation.timeOfDay, weatherSummary: operation.weatherSummary, personnelSummary: operation.personnelSummary, environmentalFactors: operation.environmentalFactors, humanFactors: operation.humanFactors, reviewNotes: operation.reviewNotes ?? "" }} lessons={operation.lessons.map((lesson) => ({ ...lesson, reviewStatus: lesson.reviewStatus as "PENDING" | "APPROVED" | "REJECTED" }))} extractionJson={operation.extractionJson} /></div> : null}
 
       <div className="grid gap-4 lg:grid-cols-[0.9fr_1.2fr_0.9fr]">
         {/* Left: summary conditions */}
@@ -92,11 +93,13 @@ export default async function OperationDetailPage({
             subtitle="Environmental band from the structured record"
           />
           <div className="space-y-3 text-[13px]">
+            <Cond label="Event date" value={operation.operationDate?.toLocaleDateString() ?? "Not documented"} />
+            <Cond label="Mission category" value={operation.missionCategory ?? "Not documented"} />
             <Cond label="Terrain" value={terrainLabel(operation.terrainType)} />
             <Cond label="Altitude band" value={operation.altitudeBand} mono />
             <Cond
               label="Altitude (mid)"
-              value={`${altitudeMeters} m`}
+              value={altitudeMeters === null ? "Not documented" : `${altitudeMeters} m`}
               mono
             />
             <Cond
@@ -106,7 +109,7 @@ export default async function OperationDetailPage({
             />
             <Cond
               label="Temperature (mid)"
-              value={`${temperatureCelsius}°C`}
+              value={temperatureCelsius === null ? "Not documented" : `${temperatureCelsius}°C`}
               mono
             />
             <Cond
@@ -121,17 +124,7 @@ export default async function OperationDetailPage({
               label="Environment"
               value={operation.environmentalFactors}
             />
-          </div>
-          <div className="border-t border-[var(--border)] pt-4">
-            <SimulateSimilarButton
-              operationId={operation.id}
-              title={operation.title}
-              terrainType={operation.terrainType}
-              altitudeMeters={altitudeMeters}
-              temperatureCelsius={temperatureCelsius}
-              durationMinutes={operation.durationMinutes}
-              timeOfDay={operation.timeOfDay}
-            />
+            {operation.adversaryContext ? <Cond label="Descriptive opposition context · excluded from simulation" value={operation.adversaryContext} /> : null}
           </div>
         </Panel>
 
@@ -217,6 +210,18 @@ export default async function OperationDetailPage({
               </pre>
             </div>
           ) : null}
+          {operation.sourceDocument ? (
+            <div className="mt-5 border-t border-[var(--border)] pt-4">
+              <SectionHeader title="Source document" subtitle="Uploaded file provenance" action={<StatusBadge tone="cyan">{operation.sourceDocument.status}</StatusBadge>} />
+              <div className="mt-3 grid gap-2 text-[12px] sm:grid-cols-2 text-[var(--gray-300)]">
+                <div>Filename <span className="text-[var(--white)]">{operation.sourceDocument.originalFilename}</span></div>
+                <div>Type <span className="text-[var(--white)]">{operation.sourceDocument.fileType}</span></div>
+                <div>Size <span className="text-[var(--white)]">{(operation.sourceDocument.fileSizeBytes / 1024).toFixed(1)} KB</span></div>
+                <div>Uploaded <span className="text-[var(--white)]">{operation.sourceDocument.uploadedAt.toLocaleString()}</span></div>
+                {operation.sourceDocument.extractionError ? <div className="sm:col-span-2">Extraction note <span className="text-[var(--white)]">{operation.sourceDocument.extractionError}</span></div> : null}
+              </div>
+            </div>
+          ) : null}
         </Panel>
 
         {/* Right: learning / lessons */}
@@ -231,13 +236,13 @@ export default async function OperationDetailPage({
                 </StatusBadge>
               }
             />
-            {operation.lessons.length === 0 ? (
+            {operation.lessons.filter((lesson) => lesson.reviewStatus === "APPROVED" || operation.workflowStatus !== "APPROVED").length === 0 ? (
               <p className="text-[13px] text-[var(--gray-500)]">
                 No lessons attached to this operation.
               </p>
             ) : (
               <ul className="space-y-3">
-                {operation.lessons.map((lesson) => (
+                {operation.lessons.filter((lesson) => lesson.reviewStatus === "APPROVED" || operation.workflowStatus !== "APPROVED").map((lesson) => (
                   <li
                     key={lesson.id}
                     className="rounded-[6px] border border-[var(--border)] px-3 py-2.5"
@@ -253,20 +258,13 @@ export default async function OperationDetailPage({
                         {lesson.description}
                       </p>
                     ) : null}
+                    {operation.workflowStatus === "APPROVED" && lesson.reviewStatus === "APPROVED" ? <LessonLifecycleControl lesson={{ id: lesson.id, reviewStatus: lesson.reviewStatus, lifecycle: lesson.lifecycle, actionOwner: lesson.actionOwner, actionDueDate: lesson.actionDueDate?.toISOString().slice(0, 10) ?? null, validationNotes: lesson.validationNotes }} /> : <p className="mt-2 text-[10px] text-[var(--gray-500)]">Lifecycle follow-up unlocks after source and lesson approval.</p>}
                   </li>
                 ))}
               </ul>
             )}
           </Panel>
 
-          <SimilarScenariosPanel
-            terrainType={operation.terrainType}
-            altitudeMeters={altitudeMeters}
-            temperatureCelsius={temperatureCelsius}
-            durationMinutes={operation.durationMinutes}
-            timeOfDay={operation.timeOfDay}
-            excludeId={operation.id}
-          />
         </div>
       </div>
     </AppShell>

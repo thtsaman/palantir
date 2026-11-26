@@ -1,0 +1,17 @@
+Historical Operation: Synthetic Demo Valley Traverse
+Region: Synthetic training range
+Terrain: Mountain
+Altitude: 1800-2400 m
+Temperature: 4-10 °C
+Duration: 180 minutes
+Time of day: Day
+Weather: Synthetic dry conditions
+Personnel: Four synthetic demo profiles
+
+This is a fictional training report created for a software demonstration. No real person, unit, location, or operation is represented.
+
+Observation: The training group recorded gradual fatigue during the final segment.
+Environmental observation: Uneven mountain trail; marked water resupply point.
+
+Lesson: Record the planned water point when reviewing training timelines.
+Lesson: Keep documented observations separate from modeled outcomes.

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from 'three-stdlib';
 import * as THREE from 'three';
@@ -37,7 +37,7 @@ export function CameraController({ targetPosition, cameraMode }: CameraControlle
       camera.position.set(targetPosition[0] + 40, targetPosition[1] + 50, targetPosition[2] + 60);
       controlsRef.current.target.set(targetPosition[0], targetPosition[1], targetPosition[2]);
     }
-  }, [cameraMode]);
+  }, [camera, cameraMode, targetPosition]);
 
   useFrame(() => {
     if (!controlsRef.current) return;

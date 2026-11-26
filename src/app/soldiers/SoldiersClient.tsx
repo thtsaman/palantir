@@ -35,6 +35,10 @@ const emptyForm = {
   baselineRecovery: 78,
   typicalLoadKg: 18,
   status: "ACTIVE",
+  displayName: "",
+  ageYears: "",
+  heightCm: "",
+  weightKg: "",
 };
 
 const inputClass =
@@ -78,6 +82,16 @@ export function SoldiersClient({ roles }: { roles: RoleOption[] }) {
           baselineStrength: Number(form.baselineStrength),
           baselineRecovery: Number(form.baselineRecovery),
           typicalLoadKg: Number(form.typicalLoadKg),
+          displayName: form.displayName.trim() || null,
+          ageYears: form.ageYears === "" ? null : Number(form.ageYears),
+          heightCm: form.heightCm === "" ? null : Number(form.heightCm),
+          weightKg: form.weightKg === "" ? null : Number(form.weightKg),
+          profileProvenance: "USER_ENTERED",
+          mobilityProvenance: "USER_ENTERED",
+          enduranceProvenance: "USER_ENTERED",
+          strengthProvenance: "USER_ENTERED",
+          recoveryProvenance: "USER_ENTERED",
+          typicalLoadProvenance: "USER_ENTERED",
           status: form.status,
         }),
       });
@@ -259,6 +273,18 @@ export function SoldiersClient({ roles }: { roles: RoleOption[] }) {
                 }
                 className={cn(inputClass, "mono tabular")}
               />
+            </Field>
+            <Field label="Display name (optional)">
+              <input value={form.displayName} onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))} maxLength={80} className={inputClass} placeholder="Demo profile" />
+            </Field>
+            <Field label="Age (years, optional)">
+              <input type="number" min={18} max={75} value={form.ageYears} onChange={(e) => setForm((f) => ({ ...f, ageYears: e.target.value }))} className={cn(inputClass, "mono tabular")} />
+            </Field>
+            <Field label="Height (cm, optional)">
+              <input type="number" min={120} max={230} step={0.1} value={form.heightCm} onChange={(e) => setForm((f) => ({ ...f, heightCm: e.target.value }))} className={cn(inputClass, "mono tabular")} />
+            </Field>
+            <Field label="Weight (kg, optional)">
+              <input type="number" min={35} max={250} step={0.1} value={form.weightKg} onChange={(e) => setForm((f) => ({ ...f, weightKg: e.target.value }))} className={cn(inputClass, "mono tabular")} />
             </Field>
             <Field label="Typical load (kg)">
               <input

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { Shield, Target } from "lucide-react";
 
@@ -73,7 +73,7 @@ export function SoldierHeroVisual({
           <div className="relative h-[340px] w-full max-w-[280px]">
             <Image
               src="/assets/soldier-profile/soldier-hero.png"
-              alt={`Realistic Profile Visual for Soldier ${soldierCode}`}
+              alt="Illustrative synthetic profile art; not a personnel photograph"
               fill
               sizes="(max-width: 768px) 100vw, 320px"
               priority
@@ -88,27 +88,7 @@ export function SoldierHeroVisual({
           <AnatomicalSilhouetteFallback />
         )}
 
-        {/* Technical Data Annotation Markers */}
-        <AnnotationMarker
-          style={{ top: "22%", right: "12%" }}
-          label="ENDURANCE PROFILE"
-          sub="COGNITIVE / RESPIRATORY"
-        />
-        <AnnotationMarker
-          style={{ top: "42%", left: "10%" }}
-          label="LOAD PROFILE"
-          sub={`EQUIPMENT ~${typicalLoadKg}KG`}
-        />
-        <AnnotationMarker
-          style={{ bottom: "28%", right: "10%" }}
-          label="MOVEMENT BASELINE"
-          sub="LOWER EXTREMITY"
-        />
-        <AnnotationMarker
-          style={{ bottom: "12%", left: "14%" }}
-          label="RECOVERY PROFILE"
-          sub="METABOLIC RESET"
-        />
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-[var(--border)] bg-[var(--ink)]/90 px-3 py-1 text-center text-[9px] text-[var(--gray-300)]">Illustrative visual · synthetic profile art</div>
       </div>
 
       {/* Bottom Metadata Bar */}
@@ -131,29 +111,7 @@ export function SoldierHeroVisual({
             <div className="font-semibold text-[var(--white)] mt-0.5">{typicalLoadKg} KG</div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function AnnotationMarker({
-  style,
-  label,
-  sub,
-}: {
-  style: React.CSSProperties;
-  label: string;
-  sub: string;
-}) {
-  return (
-    <div className="absolute z-10 flex items-center gap-1.5" style={style}>
-      <div className="relative flex items-center justify-center">
-        <span className="h-2 w-2 rounded-full bg-[var(--cyan)]" />
-        <span className="absolute h-4 w-4 rounded-full border border-[var(--cyan)] opacity-40 animate-ping" />
-      </div>
-      <div className="rounded bg-[#09101d]/90 px-2 py-0.5 border border-[var(--border)] text-[9px] mono backdrop-blur-xs">
-        <div className="font-semibold text-[var(--cyan)] tracking-wider">{label}</div>
-        <div className="text-[8px] text-[var(--gray-500)]">{sub}</div>
+        <div className="mt-2 border-t border-[var(--border)] pt-2 text-[10px] text-[var(--gray-500)]">{squadName} · {unitName}</div>
       </div>
     </div>
   );
